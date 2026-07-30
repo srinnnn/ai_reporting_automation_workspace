@@ -1,0 +1,38 @@
+{
+  "manifest_version": 3,
+  "name": "Meituan Report Download Assistant",
+  "version": "0.1.0",
+  "description": "Read-only helper for exporting Meituan reports into a structured download folder.",
+  "permissions": [
+    "activeTab",
+    "downloads",
+    "scripting",
+    "storage"
+  ],
+  "host_permissions": [
+    "*://*.meituan.com/*",
+    "*://*.waimai.meituan.com/*",
+    "*://*.dianping.com/*"
+  ],
+  "action": {
+    "default_title": "Meituan Report Download Assistant",
+    "default_popup": "popup.html"
+  },
+  "background": {
+    "service_worker": "service_worker.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "*://*.meituan.com/*",
+        "*://*.waimai.meituan.com/*",
+        "*://*.dianping.com/*"
+      ],
+      "js": [
+        "content_script.js"
+      ],
+      "run_at": "document_idle",
+      "all_frames": true
+    }
+  ]
+}

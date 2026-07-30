@@ -1,0 +1,95 @@
+{
+  "schema_version": "1.0",
+  "platform": "meituan",
+  "channel": "instant_retail",
+  "guard": {
+    "read_only": true,
+    "blocked_action_text": [
+      "保存",
+      "提交",
+      "确认修改",
+      "发布",
+      "上架",
+      "下架",
+      "删除",
+      "配置",
+      "编辑",
+      "新建",
+      "启用",
+      "停用"
+    ],
+    "allowed_action_text": [
+      "查询",
+      "搜索",
+      "导出",
+      "下载",
+      "报表下载",
+      "生成报表"
+    ]
+  },
+  "reports": [
+    {
+      "file_type": "product_order",
+      "label": "商品/订单数据",
+      "required_frequency": [
+        "daily",
+        "weekly",
+        "monthly"
+      ],
+      "download_subdir": "product_order",
+      "tab_text": "订单数据",
+      "data_type_text": "商品数据",
+      "export_button_text": [
+        "导出",
+        "下载"
+      ]
+    },
+    {
+      "file_type": "store_finance",
+      "label": "门店财务数据",
+      "required_frequency": [
+        "daily",
+        "weekly",
+        "monthly"
+      ],
+      "download_subdir": "store_finance",
+      "tab_text": "交易数据",
+      "data_type_text": "门店财务明细",
+      "export_button_text": [
+        "导出",
+        "下载"
+      ]
+    },
+    {
+      "file_type": "store_traffic",
+      "label": "门店流量数据",
+      "required_frequency": [
+        "daily",
+        "weekly",
+        "monthly"
+      ],
+      "download_subdir": "store_traffic",
+      "tab_text": "流量数据",
+      "data_type_text": "门店流量明细",
+      "export_button_text": [
+        "导出",
+        "下载"
+      ]
+    },
+    {
+      "file_type": "service_review",
+      "label": "服务评价数据",
+      "required_frequency": [
+        "weekly",
+        "monthly"
+      ],
+      "download_subdir": "service_review",
+      "tab_text": "服务数据",
+      "data_type_text": "评价数据",
+      "export_button_text": [
+        "导出",
+        "下载"
+      ]
+    }
+  ]
+}

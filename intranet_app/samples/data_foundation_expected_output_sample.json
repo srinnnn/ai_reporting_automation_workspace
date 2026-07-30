@@ -1,0 +1,41 @@
+{
+  "recognition": {
+    "file_type": "product_order",
+    "confidence": 100
+  },
+  "validation": {
+    "passed": true,
+    "errors": [],
+    "warnings": []
+  },
+  "brand_match": {
+    "store_score": 40,
+    "product_score": 40,
+    "platform_score": 10,
+    "date_score": 10,
+    "total_score": 100,
+    "decision": "auto_pass"
+  },
+  "target_table": "fact_order_product",
+  "platform": "meituan",
+  "channel": "instant_retail",
+  "normalized_rows": [
+    {
+      "source_row_number": "1",
+      "date_range": "20260720-20260726",
+      "order_id": "2602227131342725859",
+      "order_time": "2026-07-25 14:58:52",
+      "store_name": "安踏儿童（高新万达店）",
+      "store_id": "20814419",
+      "city": "济南",
+      "order_status": "订单完成",
+      "category": "户外运动>水上运动",
+      "product_name": "安踏儿童泳镜",
+      "upc_code": "2000000447168",
+      "sku_code": "2000000447168",
+      "sales_quantity": "2",
+      "paid_sales_amount": "95.00",
+      "refund_amount": "0"
+    }
+  ]
+}

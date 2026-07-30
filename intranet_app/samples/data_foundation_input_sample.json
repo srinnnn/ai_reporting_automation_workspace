@@ -1,0 +1,34 @@
+{
+  "metadata": {
+    "business_unit": "anta_retail_team",
+    "brand_id": "anta_kids",
+    "brand_name": "安踏儿童",
+    "platform": "meituan",
+    "channel": "instant_retail",
+    "project_code": "p1_p2_anta_meituan",
+    "declared_file_type": "product_order",
+    "data_start_date": "20260720",
+    "data_end_date": "20260726",
+    "uploaded_by": "business_user"
+  },
+  "known_store_ids": ["20814419"],
+  "known_product_codes": ["2000000447168"],
+  "rows": [
+    {
+      "日期": "\t20260720-20260726",
+      "订单编号": "2602227131342725859\t",
+      "下单时间": "2026-07-25 14:58:52\t",
+      "店铺名称": "安踏儿童（高新万达店）\t",
+      "店铺ID": "20814419\t",
+      "店铺所在城市": "济南\t",
+      "订单状态": "订单完成",
+      "商品分类": "户外运动>水上运动\t",
+      "商品名称": "安踏儿童泳镜\t",
+      "UPC码": "2000000447168\t",
+      "商品SKU码": "2000000447168\t",
+      "商品销售数量": "2\t",
+      "商品实付销售额": "95.00",
+      "部分退款商品金额": ""
+    }
+  ]
+}

@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <title>Meituan Assistant</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --bg: #f6f8fb;
+        --panel: #ffffff;
+        --ink: #172033;
+        --muted: #667085;
+        --line: #d9e1ee;
+        --blue: #2457c5;
+        --blue-soft: #e8eefc;
+      }
+      body {
+        margin: 0;
+        width: 380px;
+        background: var(--bg);
+        color: var(--ink);
+        font: 13px/1.5 "Microsoft YaHei", Arial, sans-serif;
+      }
+      main {
+        padding: 14px;
+      }
+      h1 {
+        margin: 0 0 10px;
+        font-size: 16px;
+      }
+      .card {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 12px;
+      }
+      label {
+        display: block;
+        margin-top: 10px;
+        color: var(--muted);
+      }
+      input,
+      select {
+        box-sizing: border-box;
+        width: 100%;
+        margin-top: 4px;
+        padding: 8px;
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        background: #fff;
+        color: var(--ink);
+      }
+      .metric-panel {
+        margin-top: 10px;
+        padding: 8px;
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        background: #fbfcff;
+        max-height: 150px;
+        overflow: auto;
+      }
+      .metric-option {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        margin: 4px 0;
+        color: var(--ink);
+      }
+      .metric-option input {
+        width: auto;
+        margin: 0;
+      }
+      .row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+      }
+      button {
+        width: 100%;
+        margin-top: 10px;
+        padding: 9px 10px;
+        border: 0;
+        border-radius: 6px;
+        background: var(--blue);
+        color: #fff;
+        cursor: pointer;
+        font-weight: 600;
+      }
+      button.secondary {
+        background: var(--blue-soft);
+        color: var(--blue);
+      }
+      #status {
+        margin-top: 10px;
+        min-height: 18px;
+        color: var(--muted);
+        white-space: pre-wrap;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>美团报表下载助手</h1>
+      <section class="card">
+        <div class="row">
+          <label>品牌
+            <input id="brandId" value="anta_kids">
+          </label>
+          <label>业务
+            <input id="businessUnit" value="anta_retail_team">
+          </label>
+        </div>
+        <div class="row">
+          <label>开始日期
+            <input id="startDate" type="date">
+          </label>
+          <label>结束日期
+            <input id="endDate" type="date">
+          </label>
+        </div>
+        <label>报表类型
+          <select id="fileType">
+            <option value="product_order">商品/订单数据</option>
+            <option value="store_finance">门店财务数据</option>
+            <option value="store_traffic">门店流量数据</option>
+            <option value="service_review">服务评价数据</option>
+          </select>
+        </label>
+        <label>数据指标
+          <div id="metricPanel" class="metric-panel"></div>
+        </label>
+        <button id="selectAllMetricsButton" class="secondary" type="button">全选当前报表指标</button>
+        <button id="manualButton" type="button">手动模式：记录下一次下载</button>
+        <button id="autoButton" class="secondary" type="button">自动模式：当前报表创建并下载</button>
+        <button id="autoAllButton" class="secondary" type="button">自动模式：三张日报报表一键导出</button>
+        <button id="snapshotButton" class="secondary" type="button">识别当前页面</button>
+        <div id="status"></div>
+      </section>
+    </main>
+    <script src="popup.js"></script>
+  </body>
+</html>

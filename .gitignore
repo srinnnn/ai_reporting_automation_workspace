@@ -1,0 +1,167 @@
+﻿# Python cache and tooling
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+.hypothesis/
+
+# Virtual environments and local secrets
+.env
+.env.*
+!.env.example
+.venv/
+venv/
+env/
+ENV/
+local_settings.py
+*.pem
+*.key
+*.p12
+*.pfx
+
+# Node and frontend artifacts
+node_modules/
+**/node_modules/
+dist/
+build/
+coverage/
+.cache/
+
+# Runtime/generated local state
+runtime/
+**/runtime/
+intranet_app/runtime/
+outputs/
+uploads/
+downloads/
+Downloads/
+logs/
+*.log
+*.tmp
+*.temp
+*.bak
+
+# Local databases
+*.db
+*.sqlite
+*.sqlite3
+*.sqlite3-*
+db.sqlite3
+db.sqlite3-journal
+
+# Raw business data and platform exports: default deny
+*.csv
+*.xls
+*.xlsx
+*.xlsm
+*.xlsb
+*.parquet
+*.ndjson
+*.jsonl
+*.zip
+*.7z
+*.rar
+*.tar
+*.gz
+*.exe
+*.msi
+*.dmg
+*.pkg
+
+# Office/business documents likely to contain real client data
+*.docx
+*.doc
+*.pptx
+*.ppt
+~$*
+ecco_*.png
+ECCO_*.svg
+
+# Local installers/tools downloaded on this machine
+local_tools/
+local_tools/**
+
+# Business material package: protect all real source/finished business files
+ai_report_config_materials/**/01_raw_data/**
+ai_report_config_materials/**/02_manual_deliverables/**
+ai_report_config_materials/**/03_unresolved/**
+ai_report_config_materials/**/meituan_auto_download/**
+ai_report_config_materials/**/jd_export/**
+ai_report_config_materials/**/tmall_export/**
+ai_report_config_materials/**/anta_project_enrichment/**
+ai_report_config_materials/**/03-1_anta_instant_retail/**/03-1-1_listing_filter/**
+ai_report_config_materials/**/03-1_anta_instant_retail/**/03-1-3_blacklist_filter/**
+
+# Generated index/dictionary files can be rebuilt locally
+ai_report_config_materials/00_index_dictionary/archive_index.csv
+ai_report_config_materials/00_index_dictionary/data_dictionary.csv
+ai_report_config_materials/00_index_dictionary/project_manual_hours.csv
+
+# Root business/planning workbooks stay local
+/*.xlsx
+/*.xls
+/*.csv
+/*.docx
+/*.pptx
+
+# Local data convention
+data/local/**
+!data/local/
+!data/local/README.md
+
+# Keep source code, docs, test-safe examples, and templates
+!.gitattributes
+!.gitignore
+!README.md
+!PROJECT_STATUS.md
+!AGENTS.md
+!GITHUB_UPLOAD_CLEANUP_REPORT.md
+!intranet_app/README.md
+!intranet_app/samples/
+!intranet_app/samples/**
+!browser_extensions/**/samples/
+!browser_extensions/**/samples/**
+!data/
+!data/README.md
+!data/examples/
+!data/examples/**
+!data/templates/
+!data/templates/**
+
+# Keep only explicit material templates and docs in ai_report_config_materials
+!ai_report_config_materials/**/
+!ai_report_config_materials/**/*.md
+!ai_report_config_materials/**/*template*.xlsx
+!ai_report_config_materials/**/*Template*.xlsx
+!ai_report_config_materials/**/*模板*.xlsx
+!ai_report_config_materials/**/*template*.csv
+!ai_report_config_materials/**/*Template*.csv
+!ai_report_config_materials/**/*模板*.csv
+!ai_report_config_materials/**/README.md
+!ai_report_config_materials/**/.gitkeep
+
+# Re-apply sensitive directory protection after template exceptions
+ai_report_config_materials/**/01_raw_data/**
+ai_report_config_materials/**/02_manual_deliverables/**
+ai_report_config_materials/**/03_unresolved/**
+ai_report_config_materials/**/meituan_auto_download/**
+ai_report_config_materials/**/jd_export/**
+ai_report_config_materials/**/tmall_export/**
+ai_report_config_materials/**/anta_project_enrichment/**
+ai_report_config_materials/**/03-1_anta_instant_retail/**/03-1-1_listing_filter/**
+ai_report_config_materials/**/03-1_anta_instant_retail/**/03-1-3_blacklist_filter/**
+
+# System/editor files
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
+.idea/
+.cursorignore
+.cursorindexingignore
+
