@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import csv
 import hashlib
@@ -19,6 +19,26 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Callable
 from urllib.parse import parse_qs, quote, unquote, urlparse
+
+from backend.adapters.report_task_adapter import build_daily_report_task_payload
+from backend.core.config import load_core_config
+from backend.repositories.sqlite.foundation_repository import SQLiteFoundationRepository
+from backend.repositories.sqlite.report_repository import SQLiteReportRepository
+from backend.repositories.sqlite.task_repository import SQLiteTaskRepository
+from backend.services.ai_content_service import AIContentService
+from backend.services.ai_service import AIService
+from backend.services.data_foundation_service import DataFoundationService
+from backend.services.permission_service import PermissionService
+from backend.services.report_service import ReportService
+from backend.services.task_query_service import TaskQueryService
+from backend.services.task_result_service import TaskResultService
+from backend.services.task_service import TaskService
+from backend.workers.contracts import TaskResult, TaskType, WorkerTaskStatus
+from backend.workers.executors.ai_content_executor import AIContentExecutor
+from backend.workers.executors.data_import_executor import DataImportExecutor
+from backend.workers.executors.report_executor import ReportExecutor
+from backend.workers.task_runner import TaskRunner
+from backend.workers.task_submitter import TaskSubmitter
 
 from .ai_gateway import AiGatewayError, BailianClient, BailianSettings, save_bailian_api_key
 from .archive_intake import ArchiveIntakeConfig, ArchiveIntakeResult, ensure_intake_workspace, rebuild_archive_catalog, run_archive_intake
@@ -74,6 +94,14 @@ PROCESSORS: dict[str, Processor] = {
     ai_selection.MODULE_KEY: ai_selection.process,
     copy_content.MODULE_KEY: copy_content.process,
 }
+
+
+def _report_task_mode() -> str:
+    try:
+        return load_core_config().report_task_mode
+    except (TypeError, ValueError) as exc:
+        logging.error("report task mode config failed closed to legacy: %s", exc)
+        return "legacy"
 
 
 @dataclass(frozen=True)
@@ -406,6 +434,9 @@ class IntranetApp:
             self._redirect(handler, "/login", clear_cookie=True)
             return
         if context.user is None:
+            if path.startswith("/api/"):
+                self._send_json(handler, {"error": "unauthorized"}, status=401)
+                return
             self._redirect(handler, "/login")
             return
         if path == "/":
@@ -457,6 +488,18 @@ class IntranetApp:
         if path == "/data-dictionary/download":
             self._send_file(handler, self._data_dictionary_path(), download_name="data_dictionary.csv")
             return
+        if path == "/tasks":
+            self._send_html(handler, self._tasks_page(context.user))
+            return
+        if path.startswith("/tasks/"):
+            self._send_html(handler, self._task_detail_page(context.user, path))
+            return
+        if path.startswith("/api/tasks/") and path.endswith("/download"):
+            self._handle_task_api_download(handler, path, context.user)
+            return
+        if path.startswith("/api/tasks/"):
+            self._handle_task_api_get(handler, path, context.user)
+            return
         if path == "/anta-retail":
             self._send_html(handler, self._anta_retail_page(context.user, "", self._anta_retail_url(handler)))
             return
@@ -496,7 +539,13 @@ class IntranetApp:
             return
         context = self._context(handler)
         if context.user is None:
+            if path.startswith("/api/"):
+                self._send_json(handler, {"error": "unauthorized"}, status=401)
+                return
             self._redirect(handler, "/login")
+            return
+        if path == "/api/tasks":
+            self._handle_task_api_submit(handler, context.user)
             return
         if path.startswith("/scenario/") and path.endswith("/run"):
             scenario_key = unquote(path.removeprefix("/scenario/").removesuffix("/run")).strip("/")
@@ -946,6 +995,10 @@ class IntranetApp:
         try:
             fields = self._read_urlencoded(handler)
             selected_report_date = self._selected_meituan_report_date(fields) if report_type == "daily" else ""
+            if report_type == "daily" and _report_task_mode() == "task":
+                task_result = self._submit_anta_meituan_daily_report_task(selected_report_date, user)
+                self._send_html(handler, self._task_result_page(user, task_result))
+                return
             synced_files = self._sync_meituan_download_sources()
             logging.info("synced %s meituan plugin files before report generation", len(synced_files))
             imported_count = self._ingest_meituan_plugin_files_to_foundation(user.username)
@@ -996,6 +1049,103 @@ class IntranetApp:
         except (ValidationError, ValueError, TypeError, FileNotFoundError, OSError) as exc:
             logging.error("anta meituan reporting failed: %s", exc)
             self._send_html(handler, self._anta_reporting_page(user, str(exc)), status=400)
+
+    def _submit_anta_meituan_daily_report_task(self, report_date: str, user: UserRecord) -> TaskResult:
+        if not isinstance(user, UserRecord):
+            raise TypeError("user must be UserRecord")
+        payload = build_daily_report_task_payload(report_date, user)
+        result = self._task_submitter().submit(TaskType.REPORT_GENERATE, payload, user.username)
+        assert isinstance(result, TaskResult)
+        return result
+
+    def _handle_task_api_submit(self, handler: BaseHTTPRequestHandler, user: UserRecord) -> None:
+        if not isinstance(user, UserRecord):
+            raise TypeError("user must be UserRecord")
+        try:
+            request = self._read_json(handler)
+            task_type = _required_json_text(request, "task_type")
+            payload = _required_json_object(request, "payload")
+            created_by = _required_json_text(request, "created_by")
+            normalized_payload = dict(payload)
+            normalized_payload["output_folder"] = str(self.config.result_dir)
+            if not self._permission_service().can_submit_task(user, task_type, normalized_payload):
+                self._send_json(handler, {"error": "forbidden"}, status=403)
+                return
+            result = self._task_submitter().submit(task_type, normalized_payload, created_by)
+            self._send_json(handler, {"task_id": result.task_id, "status": result.status.value})
+        except (json.JSONDecodeError, ValueError, TypeError, RuntimeError) as exc:
+            logging.error("task api submit failed: %s", exc)
+            self._send_json(handler, {"error": str(exc)}, status=400)
+
+    def _handle_task_api_get(self, handler: BaseHTTPRequestHandler, path: str, user: UserRecord) -> None:
+        if not isinstance(user, UserRecord):
+            raise TypeError("user must be UserRecord")
+        try:
+            task_id = _task_id_from_api_path(path, expected_parts=3)
+            task = self._task_query_service().get_task(task_id)
+            if task is None:
+                raise FileNotFoundError(str(task_id))
+            if not self._permission_service().can_view_task(user, task):
+                self._send_json(handler, {"error": "forbidden"}, status=403)
+                return
+            result = self._task_result_service().get_result(task_id)
+            self._send_json(handler, result.to_payload())
+        except FileNotFoundError as exc:
+            self._send_json(handler, {"error": str(exc)}, status=404)
+        except (ValueError, TypeError, PermissionError) as exc:
+            self._send_json(handler, {"error": str(exc)}, status=400)
+
+    def _handle_task_api_download(self, handler: BaseHTTPRequestHandler, path: str, user: UserRecord) -> None:
+        if not isinstance(user, UserRecord):
+            raise TypeError("user must be UserRecord")
+        try:
+            task_id = _task_id_from_api_path(path, expected_parts=4)
+            task = self._task_query_service().get_task(task_id)
+            if task is None:
+                raise FileNotFoundError(str(task_id))
+            if not self._permission_service().can_download_task(user, task):
+                self._send_json(handler, {"error": "forbidden"}, status=403)
+                return
+            info = self._task_result_service().get_download_info(task_id)
+            self._send_file(handler, info.path, download_name=info.filename)
+        except FileNotFoundError as exc:
+            self._send_json(handler, {"error": str(exc)}, status=404)
+        except (ValueError, TypeError, PermissionError) as exc:
+            self._send_json(handler, {"error": str(exc)}, status=400)
+
+    def _task_submitter(self) -> TaskSubmitter:
+        foundation_repository = SQLiteFoundationRepository(self.storage)
+        report_repository = SQLiteReportRepository(self.storage)
+        task_repository = SQLiteTaskRepository(self.storage)
+        data_foundation_service = DataFoundationService(foundation_repository)
+        report_service = ReportService(foundation_repository, report_repository)
+        ai_content_service = AIContentService(foundation_repository, AIService(), report_repository)
+        task_runner = TaskRunner(
+            {
+                TaskType.DATA_IMPORT: DataImportExecutor(data_foundation_service),
+                TaskType.REPORT_GENERATE: ReportExecutor(report_service),
+                TaskType.AI_CONTENT_GENERATE: AIContentExecutor(ai_content_service),
+            }
+        )
+        submitter = TaskSubmitter(TaskService(task_repository), task_runner)
+        assert isinstance(submitter, TaskSubmitter)
+        return submitter
+
+    def _task_result_service(self) -> TaskResultService:
+        service = TaskResultService(self._task_query_service(), self.config.result_dir)
+        assert isinstance(service, TaskResultService)
+        return service
+
+    def _task_query_service(self) -> TaskQueryService:
+        task_repository = SQLiteTaskRepository(self.storage)
+        service = TaskQueryService(task_repository)
+        assert isinstance(service, TaskQueryService)
+        return service
+
+    def _permission_service(self) -> PermissionService:
+        service = PermissionService()
+        assert isinstance(service, PermissionService)
+        return service
 
     def _handle_p2_content_center_run(self, handler: BaseHTTPRequestHandler, user: UserRecord) -> None:
         if not isinstance(user, UserRecord):
@@ -1549,6 +1699,16 @@ class IntranetApp:
         length = int(handler.headers.get("Content-Length", "0"))
         body = handler.rfile.read(length).decode("utf-8")
         return parse_qs(body)
+
+    def _read_json(self, handler: BaseHTTPRequestHandler) -> dict[str, object]:
+        length = int(handler.headers.get("Content-Length", "0"))
+        if length <= 0:
+            raise ValueError("request body must not be empty")
+        body = handler.rfile.read(length).decode("utf-8")
+        payload = json.loads(body)
+        if not isinstance(payload, dict):
+            raise ValueError("JSON body must be object")
+        return payload
 
     def _read_multipart(self, handler: BaseHTTPRequestHandler) -> tuple[dict[str, str], UploadedFile]:
         content_type = handler.headers.get("Content-Type", "")
@@ -3682,6 +3842,105 @@ class IntranetApp:
         assert "自动化数据执行" in result
         return result
 
+    def _tasks_page(self, user: UserRecord) -> str:
+        if not isinstance(user, UserRecord):
+            raise TypeError("user must be UserRecord")
+        tasks = self._permission_service().filter_visible_tasks(user, self._task_query_service().list_tasks())
+        rows = "".join(
+            f"""
+            <tr>
+              <td><a href="/tasks/{task.task_id}">{task.task_id}</a></td>
+              <td>{_e(task.task_type)}</td>
+              <td><span class="badge">{_e(task.status)}</span></td>
+              <td>{_e(task.created_by)}</td>
+              <td>{_e(task.created_time)}</td>
+              <td>{_e(_task_result_summary_text(task.result))}</td>
+            </tr>
+            """
+            for task in tasks
+        )
+        if not rows:
+            rows = "<tr><td colspan='6'>暂无任务记录</td></tr>"
+        body = f"""
+        <section class="toolbar">
+          <div>
+            <h1>任务状态</h1>
+            <p>提交人：{_e(user.display_name)} · 最近任务 {len(tasks)} 条</p>
+          </div>
+          <a class="button secondary" href="/">返回首页</a>
+        </section>
+        <section>
+          <article>
+            <h2>最近任务</h2>
+            <table>
+              <thead>
+                <tr><th>task_id</th><th>task_type</th><th>status</th><th>created_by</th><th>created_time</th><th>result</th></tr>
+              </thead>
+              <tbody>{rows}</tbody>
+            </table>
+          </article>
+        </section>
+        """
+        page = self._page("任务状态", body)
+        assert page.strip()
+        return page
+
+    def _task_detail_page(self, user: UserRecord, path: str) -> str:
+        if not isinstance(user, UserRecord):
+            raise TypeError("user must be UserRecord")
+        try:
+            task_id = _task_id_from_page_path(path)
+            task = self._task_query_service().get_task(task_id)
+            if task is None:
+                return self._page("任务不存在", "<p>任务不存在。</p>")
+            error_html = f"<p class='error'>{_e(task.error)}</p>" if task.error else "<p class='note'>暂无错误。</p>"
+            if not self._permission_service().can_view_task(user, task):
+                return self._page("forbidden", "<p>forbidden</p>")
+            result_rows = "".join(
+                f"<li><strong>{_e(key)}</strong><span>{_e(value)}</span></li>"
+                for key, value in _flatten_result(task.result).items()
+            )
+            if not result_rows:
+                result_rows = "<li><strong>result</strong><span>暂无结果。</span></li>"
+            download_link = self._task_download_button(user, task)
+            body = f"""
+            <section class="toolbar">
+              <div>
+                <h1>任务详情 #{task.task_id}</h1>
+                <p>{_e(task.task_type)} · {_e(task.status)} · {_e(task.created_by)}</p>
+              </div>
+              <a class="button secondary" href="/tasks">返回任务列表</a>
+            </section>
+            <section class="split">
+              <article>
+                <h2>状态</h2>
+                <ul class="metrics">
+                  <li><strong>task_id</strong><span>{task.task_id}</span></li>
+                  <li><strong>status</strong><span>{_e(task.status)}</span></li>
+                  <li><strong>created_time</strong><span>{_e(task.created_time)}</span></li>
+                </ul>
+                {error_html}
+                {download_link}
+              </article>
+              <article>
+                <h2>执行结果</h2>
+                <ul class="metrics">{result_rows}</ul>
+              </article>
+            </section>
+            """
+            return self._page("任务详情", body)
+        except (ValueError, TypeError) as exc:
+            return self._page("任务地址错误", f"<p>{_e(exc)}</p>")
+
+    def _task_download_button(self, user: UserRecord, task: object) -> str:
+        task_id = task.task_id
+        if not self._permission_service().can_download_task(user, task):
+            return "<p class='note'>\u6682\u65e0\u53ef\u4e0b\u8f7d\u6587\u4ef6</p>"
+        try:
+            result = self._task_result_service().get_result(task_id)
+        except (FileNotFoundError, ValueError, TypeError, PermissionError):
+            return "<p class='note'>\u6682\u65e0\u53ef\u4e0b\u8f7d\u6587\u4ef6</p>"
+        return f"<a class=\"button\" href=\"/api/tasks/{task_id}/download\">\u4e0b\u8f7d\u7ed3\u679c\u6587\u4ef6\uff1a{_e(result.filename)}</a>"
     def _automation_task_row(self, task: AutomationTaskRecord) -> str:
         if not isinstance(task, AutomationTaskRecord):
             raise TypeError("task must be AutomationTaskRecord")
@@ -4566,6 +4825,43 @@ class IntranetApp:
         assert page.strip()
         return page
 
+    def _task_result_page(self, user: UserRecord, result: TaskResult) -> str:
+        if not isinstance(user, UserRecord):
+            raise TypeError("user must be UserRecord")
+        if not isinstance(result, TaskResult):
+            raise TypeError("result must be TaskResult")
+        status_label = "\u6210\u529f" if result.status == WorkerTaskStatus.SUCCESS else "\u5931\u8d25"
+        result_items = "".join(
+            f"<li><strong>{_e(str(key))}</strong><span>{_e(str(value))}</span></li>"
+            for key, value in result.result.items()
+        )
+        if not result_items:
+            result_items = "<li><strong>status</strong><span>empty result</span></li>"
+        error_block = f"<p class='error'>{_e(result.error)}</p>" if result.error.strip() else ""
+        body = f"""
+        <section class="toolbar">
+          <div><h1>{status_label}</h1><p>{_e(user.display_name)} - task_id: {result.task_id}</p></div>
+          <a class="button secondary" href="/anta-reporting">\u8fd4\u56de\u62a5\u8868\u9875</a>
+        </section>
+        <section class="split">
+          <article>
+            <h2>\u4efb\u52a1\u72b6\u6001</h2>
+            <ul class="metrics">
+              <li><strong>status</strong><span>{_e(result.status.value)}</span></li>
+              <li><strong>finished_time</strong><span>{_e(result.finished_time)}</span></li>
+            </ul>
+            {error_block}
+          </article>
+          <article>
+            <h2>\u4efb\u52a1\u7ed3\u679c</h2>
+            <ul class="metrics">{result_items}</ul>
+          </article>
+        </section>
+        """
+        page = self._page("\u4efb\u52a1\u7ed3\u679c", body)
+        assert page.strip()
+        return page
+
     def _copy_content_result_preview(self, result: ProcessingResult) -> str:
         if not isinstance(result, ProcessingResult):
             raise TypeError("result must be ProcessingResult")
@@ -4784,6 +5080,16 @@ class IntranetApp:
         handler.end_headers()
         handler.wfile.write(data)
 
+    def _send_json(self, handler: BaseHTTPRequestHandler, payload: dict[str, object], status: int = 200) -> None:
+        if not isinstance(payload, dict):
+            raise TypeError("payload must be dict")
+        data = json.dumps(payload, ensure_ascii=False, sort_keys=True).encode("utf-8")
+        handler.send_response(status)
+        handler.send_header("Content-Type", "application/json; charset=utf-8")
+        handler.send_header("Content-Length", str(len(data)))
+        handler.end_headers()
+        handler.wfile.write(data)
+
     def _send_file(self, handler: BaseHTTPRequestHandler, path: Path, download_name: str | None = None) -> None:
         if not path.exists() or not path.is_file():
             self._send_html(handler, self._page("文件不存在", "<p>文件不存在。</p>"), status=404)
@@ -4837,6 +5143,85 @@ def _safe_serial() -> str:
     from datetime import datetime
 
     return datetime.now().strftime("%Y%m%d%H%M%S%f")
+
+
+def _required_json_text(payload: dict[str, object], field_name: str) -> str:
+    if not isinstance(payload, dict):
+        raise TypeError("payload must be dict")
+    value = payload.get(field_name)
+    if not isinstance(value, str) or not value.strip():
+        raise ValueError(f"{field_name} must not be empty")
+    result = value.strip()
+    assert result
+    return result
+
+
+def _required_json_object(payload: dict[str, object], field_name: str) -> dict[str, object]:
+    if not isinstance(payload, dict):
+        raise TypeError("payload must be dict")
+    value = payload.get(field_name)
+    if not isinstance(value, dict):
+        raise ValueError(f"{field_name} must be object")
+    result = dict(value)
+    assert isinstance(result, dict)
+    return result
+
+
+def _task_id_from_api_path(path: str, expected_parts: int) -> int:
+    if not isinstance(path, str) or not path.strip():
+        raise ValueError("path must not be empty")
+    parts = [part for part in path.split("/") if part]
+    if len(parts) != expected_parts or parts[0] != "api" or parts[1] != "tasks":
+        raise ValueError("task api path is invalid")
+    if expected_parts == 4 and parts[3] != "download":
+        raise ValueError("task download path is invalid")
+    try:
+        task_id = int(parts[2])
+    except ValueError as exc:
+        raise ValueError("task_id must be integer") from exc
+    if task_id <= 0:
+        raise ValueError("task_id must be positive")
+    return task_id
+
+
+def _task_id_from_page_path(path: str) -> int:
+    if not isinstance(path, str) or not path.strip():
+        raise ValueError("path must not be empty")
+    parts = [part for part in path.split("/") if part]
+    if len(parts) != 2 or parts[0] != "tasks":
+        raise ValueError("task page path is invalid")
+    try:
+        task_id = int(parts[1])
+    except ValueError as exc:
+        raise ValueError("task_id must be integer") from exc
+    if task_id <= 0:
+        raise ValueError("task_id must be positive")
+    return task_id
+
+
+def _task_result_summary_text(result: dict[str, object]) -> str:
+    if not isinstance(result, dict):
+        raise TypeError("result must be dict")
+    if not result:
+        return "empty"
+    if "summary" in result and isinstance(result["summary"], dict):
+        return f"summary: {len(result['summary'])}"
+    if "output_row_count" in result:
+        return f"rows: {result['output_row_count']}"
+    return ", ".join(str(key) for key in list(result.keys())[:3])
+
+
+def _flatten_result(result: dict[str, object]) -> dict[str, str]:
+    if not isinstance(result, dict):
+        raise TypeError("result must be dict")
+    flattened: dict[str, str] = {}
+    for key, value in result.items():
+        if isinstance(value, dict):
+            for child_key, child_value in value.items():
+                flattened[f"{key}.{child_key}"] = str(child_value)
+            continue
+        flattened[str(key)] = str(value)
+    return flattened
 
 
 def _unique_upload_path(path: Path) -> Path:
@@ -5010,3 +5395,4 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+
