@@ -1,0 +1,20 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: ai-reporting-automation:local
+    env_file:
+      - .env
+    environment:
+      INTRANET_HOST: 0.0.0.0
+      INTRANET_PORT: 8785
+      PYTHONPATH: /app:/app/src
+      APP_ENV: development
+      DATABASE_BACKEND: sqlite
+      RUNTIME_DIR: /app/intranet_app/runtime
+    ports:
+      - "8785:8785"
+    volumes:
+      - ./intranet_app/runtime:/app/intranet_app/runtime
+    restart: unless-stopped

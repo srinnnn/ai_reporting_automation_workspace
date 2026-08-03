@@ -1,0 +1,66 @@
+[tool.black]
+line-length = 140
+target-version = ["py312"]
+include = '\.pyi?$'
+exclude = '''
+/(
+    \.git
+  | \.mypy_cache
+  | \.ruff_cache
+  | \.venv
+  | venv
+  | build
+  | dist
+  | node_modules
+  | runtime
+  | outputs
+  | uploads
+  | downloads
+  | ai_report_config_materials
+)/
+'''
+
+[tool.ruff]
+line-length = 140
+target-version = "py312"
+src = ["backend", "intranet_app", "tools", "tests"]
+exclude = [
+    ".git",
+    ".mypy_cache",
+    ".ruff_cache",
+    ".venv",
+    "venv",
+    "build",
+    "dist",
+    "node_modules",
+    "runtime",
+    "outputs",
+    "uploads",
+    "downloads",
+    "ai_report_config_materials",
+]
+
+[tool.ruff.lint]
+select = ["E", "F", "I"]
+ignore = [
+    "E501",
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["backend", "intranet_app"]
+
+[tool.mypy]
+python_version = "3.12"
+files = ["backend", "intranet_app", "tools", "tests"]
+ignore_missing_imports = true
+warn_unused_configs = true
+no_implicit_optional = true
+check_untyped_defs = false
+disallow_untyped_defs = false
+exclude = [
+    "intranet_app/runtime/",
+    "outputs/",
+    "uploads/",
+    "downloads/",
+    "ai_report_config_materials/",
+]

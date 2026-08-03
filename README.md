@@ -23,6 +23,11 @@ Real business data is local-only and ignored by `.gitignore`, including:
 - Local SQLite databases
 - API keys, cookies, passwords, and account credentials
 
+## Development Environment
+
+- Python 3.12+
+- Install dependencies with `python -m pip install -r requirements-dev.txt`
+
 ## Start Locally
 
 ```powershell

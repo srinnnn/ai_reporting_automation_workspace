@@ -35,6 +35,17 @@
 - Stage 3 Step 6-S task read model extension: expanded TaskReadModel with owner, brand, business unit, platform, channel, updated_at, scope_snapshot, and top-level result_asset from existing SQLite records without changing schema.
 - Stage 3 Step 6-T task result read model adaptation: updated TaskResultService to prefer TaskReadModel.result_asset while preserving legacy task.result["result_asset"] fallback and existing safe download checks.
 - Stage 7 Step 7-D PostgreSQL task repository skeleton: added PostgreSQL connection and TaskRepository adapter skeletons that implement the existing interface without opening real database connections or executing SQL.
+- Production foundation Step 1 storage/assets boundary: froze storage.py as Legacy Adapter through STORAGE_MIGRATION_BOUNDARY.md, added ResultAssetService -> StorageProvider -> LocalStorageProvider, and decoupled ReportExecutor from local result paths while preserving CSV output payloads.
+- Verification 2026-08-03: `python -m unittest discover -s tests -p "test_*.py"` ran 190 tests OK; `python -m py_compile` passed for Step 1 modified Python files.
+- Step 7-E-1 ApplicationContainer skeleton: added process-level dependency assembly for CoreConfig, logger, SQLite repositories, services, result assets, executors, TaskRunner, and TaskSubmitter without wiring app.py or migrating business logic.
+- Verification 2026-08-03: `python -m unittest discover -s tests -p "test_*.py"` ran 195 tests OK; `python -m py_compile backend\core\container.py tests\test_application_container.py intranet_app\app.py` passed; explicit imports for `intranet_app.app` and `backend.core.container` passed.
+- Step 7-E-2 application bootstrap integration: added compatible `create_intranet_app()` startup helper, optional `ApplicationContainer` attachment on `IntranetApp`, and lifecycle `close()` handling while keeping direct legacy `IntranetApp(config)` construction available.
+- Verification 2026-08-03: `python -m unittest discover -s tests -p "test_*.py"` ran 199 tests OK; `python -m py_compile intranet_app\app.py tests\test_application_bootstrap.py backend\core\container.py` passed; `create_intranet_app` import check passed.
+- Step 7-E-3 container read-service resolution: migrated TaskQueryService, TaskResultService, and PermissionService resolvers to prefer `app.container.services` while preserving legacy SQLite fallback constructors.
+- Verification 2026-08-03: `python -m unittest discover -s tests -p "test_*.py"` ran 203 tests OK; `python -m py_compile intranet_app\app.py tests\test_container_service_resolution.py` passed.
+- Step 7-E-4 container TaskSubmitter resolution: exposed the existing in-process TaskSubmitter through `app.container.services.task_submitter`, updated `_task_submitter()` to prefer it, and preserved the legacy synchronous fallback path.
+- Step 10-A Anta Meituan daily report Task migration: documented the legacy-vs-task execution path, validated `REPORT_TASK_MODE=task` through ReportTaskAdapter -> TaskSubmitter -> TaskRunner -> ReportExecutor -> ReportService -> ResultAssetService, and added regression tests for legacy parity, Task submission, CSV asset persistence, TaskResult download, and failed status recording.
+- Verification 2026-08-03: `python -m unittest discover -s tests -p "test_*.py"` ran 206 tests OK; `python -m py_compile intranet_app\app.py backend\core\container.py tests\test_container_task_submitter_resolution.py` passed.
 
 ## Not Completed
 
@@ -55,7 +66,7 @@
 - TaskRunner is available for local dispatch, but web routes and automation pages still call legacy synchronous flows until explicit wiring is approved.
 - TaskSubmitter is available as a Web/API submission entry; only the Anta Meituan daily route has an opt-in feature-flag path in this step.
 - TaskQueryService is available for future management and monitoring pages, but no frontend route has been connected in this step.
-- Report task feature flag is wired for Anta Meituan daily reports only; weekly reports and other report routes still use legacy synchronous flows.
+- Anta Meituan daily reports have a tested `REPORT_TASK_MODE=task` migration path; weekly reports and other report routes still use legacy synchronous flows.
 
 ## Current Bugs And Risks
 
@@ -84,6 +95,9 @@
 - Step 6-S exposes task scope fields through the read model, but persistence still comes from legacy automation tables until the future PostgreSQL tasks/task_runs/task_results migration.
 - Step 6-T keeps result assets backed by legacy run message JSON until the future task_results table exists; the service interface is now ready for the formal read model.
 - Step 7-D PostgreSQL TaskRepository is a contract skeleton only; write methods intentionally fail closed until reviewed SQL and integration tests exist.
+- Step 10-A Task mode for Anta Meituan daily reports is still synchronous and foundation-only; it does not create a legacy job record, so users must use Task result pages/API for task-mode downloads. Keep `REPORT_TASK_MODE=legacy` as the default until business acceptance confirms parity.
+- Production foundation Step 1 keeps LocalStorageProvider as the only concrete asset provider; OSS/S3 support remains a later adapter and no database schema was changed.
+- Step 7-E-1 container is not yet wired into `app.py`; it is a skeleton assembly boundary only, with PostgreSQL intentionally failing closed until a reviewed adapter exists.
 
 ## Next Plan
 
@@ -95,3 +109,7 @@
 6. Prepare an internal security review package before any public or company-wide deployment.
 7. Add API auth hardening and RBAC-scoped task visibility before enabling `REPORT_TASK_MODE=task` for business users.
 8. Extend TaskReadModel with brand, business unit, platform, and channel metadata during the later schema/read-model migration.
+9. Implement Step 2 configuration environment split and production logging enhancements without changing business processors.
+10. Gradually replace selected route-level dependency creation with `app.container.services` behind compatibility tests, starting with read-only task query/result services.
+
+- Step 10-J-0 local Phase 1 Task mode setup: added local `.env` with only `REPORT_TASK_MODE=task` for Admin grey validation, documented local Task mode setup in `docs/LOCAL_TASK_MODE_SETUP.md`, and required `/console/environment` to show `task` before Phase 1 execution. No business code, processor, Task flow, or database schema was changed.

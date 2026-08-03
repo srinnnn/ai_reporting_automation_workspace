@@ -1,8 +1,6 @@
 from __future__ import annotations
 
-from pathlib import Path
-
-from backend.services.result_asset_service import ResultAssetService
+from backend.services.assets.asset_service import ResultAssetService
 from backend.services.report_service import MeituanReportRequest, MeituanWeeklyReportRequest, ReportService
 from backend.workers.contracts import JsonObject, TaskRequest, TaskType
 from backend.workers.executors.base import BaseTaskExecutor
@@ -10,10 +8,13 @@ from intranet_app.domain import ProcessingResult
 
 
 class ReportExecutor(BaseTaskExecutor):
-    def __init__(self, report_service: ReportService) -> None:
+    def __init__(self, report_service: ReportService, result_asset_service: ResultAssetService | None = None) -> None:
         if not isinstance(report_service, ReportService):
             raise TypeError("report_service must be ReportService")
+        if result_asset_service is not None and not isinstance(result_asset_service, ResultAssetService):
+            raise TypeError("result_asset_service must be ResultAssetService")
         self._report_service = report_service
+        self._result_asset_service = result_asset_service
 
     def _execute(self, task_request: TaskRequest):
         if task_request.task_type != TaskType.REPORT_GENERATE:
@@ -21,7 +22,7 @@ class ReportExecutor(BaseTaskExecutor):
         try:
             result = self._build_report(task_request.payload)
             output = _processing_result_summary(result)
-            asset = _save_result_asset(task_request.task_id, task_request.payload, result)
+            asset = _save_result_asset(self._result_asset_service, task_request.task_id, task_request.payload, result)
             if asset:
                 output["result_asset"] = asset
                 output["file_path"] = str(asset["file_path"])
@@ -68,15 +69,18 @@ def _processing_result_summary(result: ProcessingResult) -> JsonObject:
     return output
 
 
-def _save_result_asset(task_id: int, payload: JsonObject, result: ProcessingResult) -> JsonObject:
+def _save_result_asset(
+    result_asset_service: ResultAssetService | None,
+    task_id: int,
+    payload: JsonObject,
+    result: ProcessingResult,
+) -> JsonObject:
+    if result_asset_service is None:
+        return {}
     if not isinstance(task_id, int) or task_id <= 0:
         raise ValueError("task_id must be positive int")
-    output_folder = _optional_text(payload, "output_folder")
-    if not output_folder:
-        return {}
-    service = ResultAssetService(Path(output_folder))
     filename = _asset_filename(task_id, payload)
-    asset = service.save_csv(filename, result.output_rows)
+    asset = result_asset_service.save_csv(filename, result.output_rows)
     asset_payload = asset.to_payload()
     assert asset_payload["filename"]
     return asset_payload

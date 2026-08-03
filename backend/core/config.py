@@ -1,9 +1,12 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from dataclasses import dataclass
 import logging
+import os
 from pathlib import Path
 from typing import Mapping
+
+from dotenv import dotenv_values
 
 
 VALID_ENVIRONMENTS = frozenset({"development", "testing", "production"})
@@ -94,10 +97,10 @@ def load_core_config(
     environ: Mapping[str, str] | None = None,
     root_dir: Path | None = None,
 ) -> CoreConfig:
-    source = environ if environ is not None else __import__("os").environ
     actual_root = root_dir if root_dir is not None else Path(__file__).resolve().parents[2]
     if not isinstance(actual_root, Path):
         raise TypeError("root_dir must be pathlib.Path")
+    source = environ if environ is not None else _load_runtime_environment(actual_root)
 
     runtime_dir = _path_from_env(source, "RUNTIME_DIR", actual_root / "intranet_app" / "runtime")
     environment = _text_from_env(source, "APP_ENV", "development")
@@ -136,6 +139,26 @@ def load_core_config(
     )
     assert isinstance(config, CoreConfig)
     return config
+
+
+def _load_runtime_environment(root_dir: Path) -> dict[str, str]:
+    if not isinstance(root_dir, Path):
+        raise TypeError("root_dir must be pathlib.Path")
+    result = _dotenv_mapping(root_dir / ".env")
+    result.update({key: value for key, value in os.environ.items() if isinstance(value, str)})
+    assert isinstance(result, dict)
+    return result
+
+
+def _dotenv_mapping(path: Path) -> dict[str, str]:
+    if not isinstance(path, Path):
+        raise TypeError("path must be pathlib.Path")
+    if not path.exists():
+        return {}
+    raw_values = dotenv_values(path, encoding="utf-8-sig")
+    result = {key: value for key, value in raw_values.items() if isinstance(key, str) and isinstance(value, str)}
+    assert isinstance(result, dict)
+    return result
 
 
 def _report_task_mode_from_env(source: Mapping[str, str]) -> str:
@@ -185,3 +208,4 @@ def _int_from_env(source: Mapping[str, str], name: str, default: int) -> int:
         raise ValueError(f"{name} must be an integer") from exc
     assert isinstance(result, int)
     return result
+

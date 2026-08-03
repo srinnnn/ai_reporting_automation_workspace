@@ -5,6 +5,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from backend.services.assets.asset_service import ResultAssetService as ProviderResultAssetService
+from backend.services.assets.providers.local_provider import LocalStorageProvider
 from backend.services.result_asset_service import ResultAssetService
 from backend.services.report_service import ReportService
 from backend.workers.contracts import TaskRequest, TaskType, WorkerTaskStatus
@@ -27,6 +29,17 @@ class ResultAssetServiceTests(unittest.TestCase):
                 rows = list(csv.DictReader(handle))
             self.assertEqual(rows, [{"metric": "sales", "value": "100"}])
 
+    def test_service_accepts_explicit_storage_provider(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            provider = LocalStorageProvider(Path(temp_dir))
+            service = ProviderResultAssetService(provider)
+
+            asset = service.save_csv("daily-report.csv", [{"metric": "orders", "value": "2"}])
+
+            self.assertEqual(asset.filename, "daily-report.csv")
+            self.assertTrue(asset.path.exists())
+            self.assertGreater(asset.size, 0)
+
     def test_creates_missing_output_directory(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             output_dir = Path(temp_dir) / "missing" / "results"
@@ -40,8 +53,9 @@ class ResultAssetServiceTests(unittest.TestCase):
 
     def test_report_executor_returns_result_asset_information(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
-            executor = ReportExecutor(_ReportService())
-            task = _report_task(Path(temp_dir))
+            asset_service = ProviderResultAssetService(LocalStorageProvider(Path(temp_dir)))
+            executor = ReportExecutor(_ReportService(), asset_service)
+            task = _report_task()
 
             result = executor.execute(task)
 
@@ -52,6 +66,15 @@ class ResultAssetServiceTests(unittest.TestCase):
             self.assertEqual(asset["filename"], "2_anta_kids_meituan_daily_20260725_report.csv")
             self.assertTrue(Path(str(asset["file_path"])).exists())
             self.assertGreater(int(asset["size"]), 0)
+
+    def test_report_executor_without_asset_service_keeps_summary_only(self) -> None:
+        executor = ReportExecutor(_ReportService())
+
+        result = executor.execute(_report_task())
+
+        self.assertEqual(result.status, WorkerTaskStatus.SUCCESS)
+        self.assertEqual(result.result["module"], "anta_meituan_daily")
+        self.assertNotIn("result_asset", result.result)
 
     def test_legacy_csv_writer_still_writes_directly(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -76,7 +99,7 @@ class _ReportService(ReportService):
         )
 
 
-def _report_task(output_dir: Path) -> TaskRequest:
+def _report_task() -> TaskRequest:
     return TaskRequest(
         task_id=2,
         task_type=TaskType.REPORT_GENERATE,
@@ -87,7 +110,6 @@ def _report_task(output_dir: Path) -> TaskRequest:
             "platform": "meituan",
             "channel": "instant_retail",
             "report_date": "20260725",
-            "output_folder": str(output_dir),
         },
         created_time="2026-07-30T17:05:00+08:00",
     )

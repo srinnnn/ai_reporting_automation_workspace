@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 import csv
 import hashlib
@@ -22,14 +22,20 @@ from urllib.parse import parse_qs, quote, unquote, urlparse
 
 from backend.adapters.report_task_adapter import build_daily_report_task_payload
 from backend.core.config import load_core_config
+from backend.core.container import ApplicationContainer, build_application_container
 from backend.repositories.sqlite.foundation_repository import SQLiteFoundationRepository
 from backend.repositories.sqlite.report_repository import SQLiteReportRepository
 from backend.repositories.sqlite.task_repository import SQLiteTaskRepository
 from backend.services.ai_content_service import AIContentService
+from backend.services.assets.asset_service import ResultAssetService
+from backend.services.assets.providers.local_provider import LocalStorageProvider
 from backend.services.ai_service import AIService
+from backend.services.dashboard_service import DashboardService
 from backend.services.data_foundation_service import DataFoundationService
 from backend.services.permission_service import PermissionService
 from backend.services.report_service import ReportService
+from backend.services.system_status_service import SystemStatusService
+from backend.services.task_console_service import TaskConsoleFilters, TaskConsoleService
 from backend.services.task_query_service import TaskQueryService
 from backend.services.task_result_service import TaskResultService
 from backend.services.task_service import TaskService
@@ -392,9 +398,12 @@ class LocalReportSource:
 
 
 class IntranetApp:
-    def __init__(self, config: AppConfig) -> None:
+    def __init__(self, config: AppConfig, container: ApplicationContainer | None = None) -> None:
         if not isinstance(config, AppConfig):
             raise TypeError("config must be AppConfig")
+        if container is not None and not isinstance(container, ApplicationContainer):
+            raise TypeError("container must be ApplicationContainer")
+        self.container = container
         self.config = config
         self.storage = AppStorage(config.database_path)
         self.scenarios = build_scenarios(config.template_root)
@@ -403,6 +412,11 @@ class IntranetApp:
         ensure_runtime_dirs((self.config.upload_dir, self.config.result_dir))
         self.storage.initialize(self.config.default_admin_password)
         logging.info("intranet app initialized")
+
+    def close(self) -> None:
+        container = getattr(self, "container", None)
+        if isinstance(container, ApplicationContainer):
+            container.close()
 
     def make_handler(self) -> type[BaseHTTPRequestHandler]:
         app = self
@@ -441,6 +455,15 @@ class IntranetApp:
             return
         if path == "/":
             self._send_html(handler, self._dashboard(context.user))
+            return
+        if path == "/console":
+            self._send_html(handler, self._console_dashboard_page(context.user))
+            return
+        if path == "/console/tasks":
+            self._send_html(handler, self._console_tasks_page(context.user))
+            return
+        if path == "/console/environment":
+            self._send_html(handler, self._console_environment_page(context.user))
             return
         if path == "/archive-intake":
             self._send_html(handler, self._archive_intake_page(context.user, ""))
@@ -488,6 +511,15 @@ class IntranetApp:
         if path == "/data-dictionary/download":
             self._send_file(handler, self._data_dictionary_path(), download_name="data_dictionary.csv")
             return
+        if path == "/api/console/dashboard":
+            self._handle_console_dashboard_api(handler, context.user)
+            return
+        if path == "/api/system/health":
+            self._handle_system_health_api(handler, context.user)
+            return
+        if path == "/api/system/config/status":
+            self._handle_system_config_status_api(handler, context.user)
+            return
         if path == "/tasks":
             self._send_html(handler, self._tasks_page(context.user))
             return
@@ -499,6 +531,9 @@ class IntranetApp:
             return
         if path.startswith("/api/tasks/"):
             self._handle_task_api_get(handler, path, context.user)
+            return
+        if path == "/api/tasks":
+            self._handle_task_api_list(handler, context.user)
             return
         if path == "/anta-retail":
             self._send_html(handler, self._anta_retail_page(context.user, "", self._anta_retail_url(handler)))
@@ -1058,6 +1093,39 @@ class IntranetApp:
         assert isinstance(result, TaskResult)
         return result
 
+    def _handle_console_dashboard_api(self, handler: BaseHTTPRequestHandler, user: UserRecord) -> None:
+        if not isinstance(user, UserRecord):
+            raise TypeError("user must be UserRecord")
+        try:
+            self._send_json(handler, self._dashboard_service().get_dashboard(user))
+        except PermissionError:
+            self._send_json(handler, {"error": "forbidden"}, status=403)
+        except (ValueError, TypeError, RuntimeError) as exc:
+            logging.error("console dashboard api failed: %s", exc)
+            self._send_json(handler, {"error": str(exc)}, status=400)
+
+    def _handle_system_health_api(self, handler: BaseHTTPRequestHandler, user: UserRecord) -> None:
+        if not isinstance(user, UserRecord):
+            raise TypeError("user must be UserRecord")
+        try:
+            self._send_json(handler, self._system_status_service().get_health_status(user))
+        except PermissionError:
+            self._send_json(handler, {"error": "forbidden"}, status=403)
+        except (ValueError, TypeError, RuntimeError) as exc:
+            logging.error("system health api failed: %s", exc)
+            self._send_json(handler, {"error": str(exc)}, status=400)
+
+    def _handle_system_config_status_api(self, handler: BaseHTTPRequestHandler, user: UserRecord) -> None:
+        if not isinstance(user, UserRecord):
+            raise TypeError("user must be UserRecord")
+        try:
+            self._send_json(handler, self._system_status_service().get_config_status(user))
+        except PermissionError:
+            self._send_json(handler, {"error": "forbidden"}, status=403)
+        except (ValueError, TypeError, RuntimeError) as exc:
+            logging.error("system config status api failed: %s", exc)
+            self._send_json(handler, {"error": str(exc)}, status=400)
+
     def _handle_task_api_submit(self, handler: BaseHTTPRequestHandler, user: UserRecord) -> None:
         if not isinstance(user, UserRecord):
             raise TypeError("user must be UserRecord")
@@ -1077,22 +1145,28 @@ class IntranetApp:
             logging.error("task api submit failed: %s", exc)
             self._send_json(handler, {"error": str(exc)}, status=400)
 
+    def _handle_task_api_list(self, handler: BaseHTTPRequestHandler, user: UserRecord) -> None:
+        if not isinstance(user, UserRecord):
+            raise TypeError("user must be UserRecord")
+        try:
+            filters = _task_console_filters_from_query(handler.path)
+            self._send_json(handler, self._task_console_service().list_visible_tasks(user, filters))
+        except PermissionError:
+            self._send_json(handler, {"error": "forbidden"}, status=403)
+        except (ValueError, TypeError) as exc:
+            self._send_json(handler, {"error": str(exc)}, status=400)
+
     def _handle_task_api_get(self, handler: BaseHTTPRequestHandler, path: str, user: UserRecord) -> None:
         if not isinstance(user, UserRecord):
             raise TypeError("user must be UserRecord")
         try:
             task_id = _task_id_from_api_path(path, expected_parts=3)
-            task = self._task_query_service().get_task(task_id)
-            if task is None:
-                raise FileNotFoundError(str(task_id))
-            if not self._permission_service().can_view_task(user, task):
-                self._send_json(handler, {"error": "forbidden"}, status=403)
-                return
-            result = self._task_result_service().get_result(task_id)
-            self._send_json(handler, result.to_payload())
+            self._send_json(handler, self._task_console_service().get_task_detail(user, task_id))
         except FileNotFoundError as exc:
             self._send_json(handler, {"error": str(exc)}, status=404)
-        except (ValueError, TypeError, PermissionError) as exc:
+        except PermissionError:
+            self._send_json(handler, {"error": "forbidden"}, status=403)
+        except (ValueError, TypeError) as exc:
             self._send_json(handler, {"error": str(exc)}, status=400)
 
     def _handle_task_api_download(self, handler: BaseHTTPRequestHandler, path: str, user: UserRecord) -> None:
@@ -1113,17 +1187,41 @@ class IntranetApp:
         except (ValueError, TypeError, PermissionError) as exc:
             self._send_json(handler, {"error": str(exc)}, status=400)
 
+    def _dashboard_service(self) -> DashboardService:
+        service = DashboardService(self._system_status_service(), self._task_query_service(), self._permission_service())
+        assert isinstance(service, DashboardService)
+        return service
+
+    def _system_status_service(self) -> SystemStatusService:
+        container = getattr(self, "container", None)
+        if not isinstance(container, ApplicationContainer):
+            raise RuntimeError("system status service requires ApplicationContainer")
+        service = SystemStatusService(container, self._permission_service())
+        assert isinstance(service, SystemStatusService)
+        return service
+
+    def _task_console_service(self) -> TaskConsoleService:
+        service = TaskConsoleService(self._task_query_service(), self._task_result_service(), self._permission_service())
+        assert isinstance(service, TaskConsoleService)
+        return service
+
     def _task_submitter(self) -> TaskSubmitter:
+        services = self._container_services()
+        if services is not None and services.task_submitter is not None:
+            submitter = services.task_submitter
+            assert isinstance(submitter, TaskSubmitter)
+            return submitter
         foundation_repository = SQLiteFoundationRepository(self.storage)
         report_repository = SQLiteReportRepository(self.storage)
         task_repository = SQLiteTaskRepository(self.storage)
         data_foundation_service = DataFoundationService(foundation_repository)
         report_service = ReportService(foundation_repository, report_repository)
         ai_content_service = AIContentService(foundation_repository, AIService(), report_repository)
+        result_asset_service = ResultAssetService(LocalStorageProvider(self.config.result_dir))
         task_runner = TaskRunner(
             {
                 TaskType.DATA_IMPORT: DataImportExecutor(data_foundation_service),
-                TaskType.REPORT_GENERATE: ReportExecutor(report_service),
+                TaskType.REPORT_GENERATE: ReportExecutor(report_service, result_asset_service),
                 TaskType.AI_CONTENT_GENERATE: AIContentExecutor(ai_content_service),
             }
         )
@@ -1132,20 +1230,38 @@ class IntranetApp:
         return submitter
 
     def _task_result_service(self) -> TaskResultService:
-        service = TaskResultService(self._task_query_service(), self.config.result_dir)
+        services = self._container_services()
+        if services is not None:
+            service = services.task_result
+        else:
+            service = TaskResultService(self._task_query_service(), self.config.result_dir)
         assert isinstance(service, TaskResultService)
         return service
 
     def _task_query_service(self) -> TaskQueryService:
-        task_repository = SQLiteTaskRepository(self.storage)
-        service = TaskQueryService(task_repository)
+        services = self._container_services()
+        if services is not None:
+            service = services.task_query
+        else:
+            task_repository = SQLiteTaskRepository(self.storage)
+            service = TaskQueryService(task_repository)
         assert isinstance(service, TaskQueryService)
         return service
 
     def _permission_service(self) -> PermissionService:
-        service = PermissionService()
+        services = self._container_services()
+        if services is not None:
+            service = services.permissions
+        else:
+            service = PermissionService()
         assert isinstance(service, PermissionService)
         return service
+
+    def _container_services(self):
+        container = getattr(self, "container", None)
+        if isinstance(container, ApplicationContainer):
+            return container.services
+        return None
 
     def _handle_p2_content_center_run(self, handler: BaseHTTPRequestHandler, user: UserRecord) -> None:
         if not isinstance(user, UserRecord):
@@ -3842,6 +3958,274 @@ class IntranetApp:
         assert "自动化数据执行" in result
         return result
 
+    def _console_dashboard_page(self, user: UserRecord) -> str:
+        if not isinstance(user, UserRecord):
+            raise TypeError("user must be UserRecord")
+        if not _console_can_open_page(user, "dashboard"):
+            return self._page("Forbidden", "<p>Access denied for Developer Console.</p>")
+        body = f"""
+        {self._console_nav(user, "dashboard")}
+        <section class="console-hero">
+          <div>
+            <span class="console-eyebrow">Developer Console</span>
+            <h1>Dashboard</h1>
+            <p>Read-only overview for system status, task summary, and recent failures.</p>
+          </div>
+          <div class="console-status" id="console-dashboard-status">Loading</div>
+        </section>
+        <section class="console-grid console-grid-four" id="console-task-summary">
+          <article><span>Total Tasks</span><strong data-field="total">-</strong></article>
+          <article><span>Pending</span><strong data-field="pending">-</strong></article>
+          <article><span>Running</span><strong data-field="running">-</strong></article>
+          <article><span>Failed</span><strong data-field="failed">-</strong></article>
+        </section>
+        <section class="console-grid console-grid-two">
+          <article class="console-panel">
+            <h2>System Status</h2>
+            <dl class="console-definition" id="console-system-status">
+              <div><dt>Application</dt><dd>Loading</dd></div>
+              <div><dt>Database</dt><dd>Loading</dd></div>
+              <div><dt>Storage</dt><dd>Loading</dd></div>
+              <div><dt>AI</dt><dd>Loading</dd></div>
+            </dl>
+          </article>
+          <article class="console-panel">
+            <h2>Recent Failed Tasks</h2>
+            <table class="console-table">
+              <thead><tr><th>task_id</th><th>task_type</th><th>created_by</th><th>error</th><th>updated_at</th></tr></thead>
+              <tbody id="console-failed-tasks"><tr><td colspan="5">Loading</td></tr></tbody>
+            </table>
+          </article>
+        </section>
+        {self._console_dashboard_script()}
+        """
+        page = self._page("Developer Console", body)
+        assert "Developer Console" in page
+        return page
+
+    def _console_tasks_page(self, user: UserRecord) -> str:
+        if not isinstance(user, UserRecord):
+            raise TypeError("user must be UserRecord")
+        if not _console_can_open_page(user, "tasks"):
+            return self._page("Forbidden", "<p>Access denied for Task Center.</p>")
+        body = f"""
+        {self._console_nav(user, "tasks")}
+        <section class="toolbar console-toolbar">
+          <div>
+            <span class="console-eyebrow">Task Center</span>
+            <h1>Task Center</h1>
+            <p>Read-only task list scoped by the current user's permissions.</p>
+          </div>
+          <a class="button secondary" href="/console">Back to Console</a>
+        </section>
+        <section class="console-panel">
+          <form class="console-filter-bar" id="console-task-filter-form">
+            <label>Task Type<input name="task_type" placeholder="REPORT_GENERATE"></label>
+            <label>Status
+              <select name="status">
+                <option value="">All</option>
+                <option value="pending">pending</option>
+                <option value="running">running</option>
+                <option value="success">success</option>
+                <option value="failed">failed</option>
+                <option value="cancelled">cancelled</option>
+              </select>
+            </label>
+            <label>Created By<input name="created_by" placeholder="username"></label>
+            <button class="button" type="submit">Filter</button>
+            <button class="button secondary" type="reset">Clear</button>
+          </form>
+          <div class="console-table-meta" id="console-task-list-meta">Loading</div>
+          <table class="console-table console-task-table">
+            <thead><tr><th>task_id</th><th>task_type</th><th>status</th><th>created_by</th><th>created_time</th><th>error</th><th>asset</th><th>detail</th></tr></thead>
+            <tbody id="console-task-list"><tr><td colspan="8">Loading</td></tr></tbody>
+          </table>
+        </section>
+        {self._console_tasks_script()}
+        """
+        page = self._page("Task Center", body)
+        assert "Task Center" in page
+        return page
+
+    def _console_environment_page(self, user: UserRecord) -> str:
+        if not isinstance(user, UserRecord):
+            raise TypeError("user must be UserRecord")
+        if not _console_can_open_page(user, "environment"):
+            return self._page("Forbidden", "<p>Access denied for Environment Center.</p>")
+        body = f"""
+        {self._console_nav(user, "environment")}
+        <section class="toolbar console-toolbar">
+          <div>
+            <span class="console-eyebrow">Environment Center</span>
+            <h1>Environment Center</h1>
+            <p>Read-only runtime configuration status. Environment variables are not editable here.</p>
+          </div>
+          <a class="button secondary" href="/console">Back to Console</a>
+        </section>
+        <section class="console-panel">
+          <dl class="console-definition" id="console-environment-status">
+            <div><dt>APP_ENV</dt><dd>Loading</dd></div>
+            <div><dt>DATABASE_BACKEND</dt><dd>Loading</dd></div>
+            <div><dt>REPORT_TASK_MODE</dt><dd>Loading</dd></div>
+            <div><dt>AI_PROVIDER</dt><dd>Loading</dd></div>
+            <div><dt>Storage</dt><dd>Loading</dd></div>
+          </dl>
+        </section>
+        {self._console_environment_script()}
+        """
+        page = self._page("Environment Center", body)
+        assert "Environment Center" in page
+        return page
+
+    def _console_nav(self, user: UserRecord, active: str) -> str:
+        if not isinstance(user, UserRecord):
+            raise TypeError("user must be UserRecord")
+        if not isinstance(active, str) or not active.strip():
+            raise ValueError("active must not be empty")
+        links = (
+            ("dashboard", "/console", "Dashboard"),
+            ("tasks", "/console/tasks", "Task Center"),
+            ("environment", "/console/environment", "Environment Center"),
+        )
+        link_html = "".join(
+            f'<a class="console-nav-link {"active" if key == active else ""}" href="{href}">{label}</a>'
+            for key, href, label in links
+            if key != "environment" or _console_role_key(user.role) in {"admin", "developer"}
+        )
+        result = f"""
+        <section class="console-nav">
+          <div>
+            <strong>AI Automation Platform</strong>
+            <span>{_e(user.display_name)} - {_e(user.role)}</span>
+          </div>
+          <nav>{link_html}<a class="console-nav-link" href="/">Business Home</a></nav>
+        </section>
+        """
+        assert "console-nav" in result
+        return result
+
+    @staticmethod
+    def _console_dashboard_script() -> str:
+        return """
+        <script>
+        (() => {
+          const text = (value) => value === null || value === undefined || value === "" ? "-" : String(value);
+          const statusText = (item) => item && typeof item === "object" ? `${text(item.status)} ${text(item.message)}` : text(item);
+          fetch("/api/console/dashboard", {credentials: "same-origin"})
+            .then((response) => response.ok ? response.json() : Promise.reject(new Error(String(response.status))))
+            .then((data) => {
+              document.querySelector("#console-dashboard-status").textContent = "Connected";
+              const summary = data.task_summary || {};
+              document.querySelectorAll("#console-task-summary [data-field]").forEach((node) => {
+                node.textContent = text(summary[node.dataset.field]);
+              });
+              const system = data.system_status || {};
+              document.querySelector("#console-system-status").innerHTML = [
+                ["Application", statusText(system.application)],
+                ["Database", statusText(system.database)],
+                ["Storage", statusText(system.storage)],
+                ["AI", statusText(system.ai)]
+              ].map(([key, value]) => `<div><dt>${key}</dt><dd>${value}</dd></div>`).join("");
+              const failed = Array.isArray(data.recent_failed_tasks) ? data.recent_failed_tasks : [];
+              document.querySelector("#console-failed-tasks").innerHTML = failed.length
+                ? failed.map((task) => `<tr><td>${text(task.task_id)}</td><td>${text(task.task_type)}</td><td>${text(task.created_by)}</td><td>${text(task.error)}</td><td>${text(task.updated_at)}</td></tr>`).join("")
+                : '<tr><td colspan="5">No failed tasks</td></tr>';
+            })
+            .catch(() => {
+              document.querySelector("#console-dashboard-status").textContent = "Unavailable";
+              document.querySelector("#console-failed-tasks").innerHTML = '<tr><td colspan="5">No permission or API unavailable</td></tr>';
+            });
+        })();
+        </script>
+        """
+
+    @staticmethod
+    def _console_tasks_script() -> str:
+        return """
+        <script>
+        (() => {
+          const form = document.querySelector("#console-task-filter-form");
+          const list = document.querySelector("#console-task-list");
+          const meta = document.querySelector("#console-task-list-meta");
+          const text = (value) => value === null || value === undefined || value === "" ? "-" : String(value);
+          const html = (value) => text(value).replace(/[&<>'"]/g, (char) => ({"&":"&amp;","<":"&lt;",">":"&gt;","'":"&#39;",'"':"&quot;"}[char]));
+          const statusClass = (value) => {
+            const status = text(value).toLowerCase();
+            if (["success", "failed", "running", "pending", "cancelled"].includes(status)) return `console-status-${status}`;
+            return "console-status-unknown";
+          };
+          const errorSummary = (task) => task && task.error ? html(task.error).slice(0, 120) : "-";
+          const assetStatus = (task) => {
+            const asset = task && task.result_asset && typeof task.result_asset === "object" ? task.result_asset : null;
+            if (!asset || !asset.filename) return '<span class="console-asset-missing">No file</span>';
+            return `<span class="console-asset-ready">${html(asset.filename)}</span>`;
+          };
+          const taskUrl = (task) => `/tasks/${encodeURIComponent(text(task.task_id))}`;
+          const queryString = () => {
+            const params = new URLSearchParams();
+            new FormData(form).forEach((value, key) => {
+              const normalized = String(value || "").trim();
+              if (normalized) params.set(key, normalized);
+            });
+            const textValue = params.toString();
+            return textValue ? `?${textValue}` : "";
+          };
+          const renderTasks = (tasks) => {
+            meta.textContent = `${tasks.length} visible task${tasks.length === 1 ? "" : "s"}`;
+            list.innerHTML = tasks.length
+              ? tasks.map((task) => `<tr><td>${html(task.task_id)}</td><td>${html(task.task_type)}</td><td><span class="console-task-status ${statusClass(task.status)}">${html(task.status)}</span></td><td>${html(task.created_by)}</td><td>${html(task.created_time)}</td><td>${errorSummary(task)}</td><td>${assetStatus(task)}</td><td><a class="button secondary console-detail-button" href="${taskUrl(task)}">View</a></td></tr>`).join("")
+              : '<tr><td colspan="8">No task records</td></tr>';
+          };
+          const loadTasks = () => {
+            meta.textContent = "Loading";
+            fetch(`/api/tasks${queryString()}`, {credentials: "same-origin"})
+              .then((response) => response.ok ? response.json() : Promise.reject(new Error(String(response.status))))
+              .then((data) => renderTasks(Array.isArray(data.tasks) ? data.tasks : []))
+              .catch(() => {
+                meta.textContent = "Unavailable";
+                list.innerHTML = '<tr><td colspan="8">No permission or API unavailable</td></tr>';
+              });
+          };
+          form.addEventListener("submit", (event) => {
+            event.preventDefault();
+            loadTasks();
+          });
+          form.addEventListener("reset", () => window.setTimeout(loadTasks, 0));
+          loadTasks();
+        })();
+        </script>
+        """
+
+    @staticmethod
+    def _console_environment_script() -> str:
+        return """
+        <script>
+        (() => {
+          const text = (value) => value === null || value === undefined || value === "" ? "-" : String(value);
+          const storageSummary = (storage) => {
+            if (!storage || typeof storage !== "object") return "-";
+            const provider = text(storage.provider);
+            const resultDir = storage.result_dir && typeof storage.result_dir === "object" ? `result writable: ${text(storage.result_dir.writable)}` : "";
+            return `${provider} ${resultDir}`.trim();
+          };
+          fetch("/api/system/config/status", {credentials: "same-origin"})
+            .then((response) => response.ok ? response.json() : Promise.reject(new Error(String(response.status))))
+            .then((data) => {
+              document.querySelector("#console-environment-status").innerHTML = [
+                ["APP_ENV", data.app_env],
+                ["DATABASE_BACKEND", data.database_backend],
+                ["REPORT_TASK_MODE", data.report_task_mode],
+                ["AI_PROVIDER", `${text(data.ai_provider)} / ${text(data.ai_model)} / key: ${text(data.ai_api_key_configured)}`],
+                ["Storage", storageSummary(data.storage)]
+              ].map(([key, value]) => `<div><dt>${key}</dt><dd>${text(value)}</dd></div>`).join("");
+            })
+            .catch(() => {
+              document.querySelector("#console-environment-status").innerHTML = '<div><dt>Status</dt><dd>No permission or API unavailable</dd></div>';
+            });
+        })();
+        </script>
+        """
+
     def _tasks_page(self, user: UserRecord) -> str:
         if not isinstance(user, UserRecord):
             raise TypeError("user must be UserRecord")
@@ -3892,10 +4276,10 @@ class IntranetApp:
             task_id = _task_id_from_page_path(path)
             task = self._task_query_service().get_task(task_id)
             if task is None:
-                return self._page("任务不存在", "<p>任务不存在。</p>")
-            error_html = f"<p class='error'>{_e(task.error)}</p>" if task.error else "<p class='note'>暂无错误。</p>"
+                return self._page("?????", "<p>??????</p>")
             if not self._permission_service().can_view_task(user, task):
                 return self._page("forbidden", "<p>forbidden</p>")
+            error_html = f"<p class='error'>{_e(task.error)}</p>" if task.error else "<p class='note'>?????</p>"
             result_rows = "".join(
                 f"<li><strong>{_e(key)}</strong><span>{_e(value)}</span></li>"
                 for key, value in _flatten_result(task.result).items()
@@ -3907,9 +4291,12 @@ class IntranetApp:
             <section class="toolbar">
               <div>
                 <h1>任务详情 #{task.task_id}</h1>
-                <p>{_e(task.task_type)} · {_e(task.status)} · {_e(task.created_by)}</p>
+                <p>{_e(task.task_type)} ? {_e(task.status)} ? {_e(task.created_by)}</p>
               </div>
-              <a class="button secondary" href="/tasks">返回任务列表</a>
+              <div class="button-row">
+                <a class="button secondary" href="/console/tasks">Console Task Center</a>
+                <a class="button secondary" href="/tasks">返回任务列表</a>
+              </div>
             </section>
             <section class="split">
               <article>
@@ -3918,6 +4305,7 @@ class IntranetApp:
                   <li><strong>task_id</strong><span>{task.task_id}</span></li>
                   <li><strong>status</strong><span>{_e(task.status)}</span></li>
                   <li><strong>created_time</strong><span>{_e(task.created_time)}</span></li>
+                  <li><strong>updated_time</strong><span>{_e(task.updated_at or task.created_time)}</span></li>
                 </ul>
                 {error_html}
                 {download_link}
@@ -3927,10 +4315,84 @@ class IntranetApp:
                 <ul class="metrics">{result_rows}</ul>
               </article>
             </section>
+            <section class="console-grid console-grid-two task-diagnostics-grid">
+              {self._task_execution_flow_panel(task)}
+              {self._task_result_asset_panel(user, task)}
+            </section>
+            {self._task_error_diagnostics_panel(task)}
             """
             return self._page("任务详情", body)
         except (ValueError, TypeError) as exc:
-            return self._page("任务地址错误", f"<p>{_e(exc)}</p>")
+            return self._page("??????", f"<p>{_e(exc)}</p>")
+
+    def _task_execution_flow_panel(self, task: object) -> str:
+        task_type = _task_text(task, "task_type")
+        steps = _task_execution_steps(task_type)
+        items = "".join(
+            f"<li><span>{index}</span><strong>{_e(step)}</strong></li>"
+            for index, step in enumerate(steps, start=1)
+        )
+        result = f"""
+        <article class="console-panel task-flow-panel">
+          <h2>Execution Flow</h2>
+          <p class="note">Static diagnostic path for task type: {_e(task_type)}</p>
+          <ol class="task-flow-list">{items}</ol>
+        </article>
+        """
+        assert "Execution Flow" in result
+        return result
+
+    def _task_result_asset_panel(self, user: UserRecord, task: object) -> str:
+        if not isinstance(user, UserRecord):
+            raise TypeError("user must be UserRecord")
+        task_id = _task_id_value(task)
+        available = False
+        filename = ""
+        file_path = ""
+        result_asset: dict[str, object] = {}
+        if self._permission_service().can_download_task(user, task):
+            try:
+                view = self._task_result_service().get_result(task_id)
+                available = True
+                filename = view.filename
+                file_path = view.file_path
+                result_asset = dict(view.result_asset)
+            except (FileNotFoundError, ValueError, TypeError, PermissionError):
+                available = False
+        asset_rows = _asset_rows_html(result_asset)
+        result = f"""
+        <article class="console-panel task-asset-panel">
+          <h2>Result Asset</h2>
+          <dl class="console-definition">
+            <div><dt>download available</dt><dd>{_e(str(available).lower())}</dd></div>
+            <div><dt>filename</dt><dd>{_e(filename or "-")}</dd></div>
+            <div><dt>file_path</dt><dd>{_e(file_path or "-")}</dd></div>
+          </dl>
+          <h3>result_asset</h3>
+          <ul class="metrics">{asset_rows}</ul>
+        </article>
+        """
+        assert "Result Asset" in result
+        return result
+
+    def _task_error_diagnostics_panel(self, task: object) -> str:
+        status = _task_text(task, "status")
+        error = _task_text(task, "error") or "-"
+        created_time = _task_text(task, "created_time")
+        updated_time = _task_text(task, "updated_at") or created_time
+        result = f"""
+        <section class="console-panel task-error-panel">
+          <h2>Error Diagnostics</h2>
+          <dl class="console-definition">
+            <div><dt>status</dt><dd>{_e(status)}</dd></div>
+            <div><dt>error message</dt><dd>{_e(error)}</dd></div>
+            <div><dt>created_time</dt><dd>{_e(created_time)}</dd></div>
+            <div><dt>updated_time</dt><dd>{_e(updated_time)}</dd></div>
+          </dl>
+        </section>
+        """
+        assert "Error Diagnostics" in result
+        return result
 
     def _task_download_button(self, user: UserRecord, task: object) -> str:
         task_id = task.task_id
@@ -5167,6 +5629,98 @@ def _required_json_object(payload: dict[str, object], field_name: str) -> dict[s
     return result
 
 
+def _task_execution_steps(task_type: str) -> tuple[str, ...]:
+    if not isinstance(task_type, str) or not task_type.strip():
+        raise ValueError("task_type must not be empty")
+    normalized = task_type.strip().upper()
+    service = {
+        "REPORT_GENERATE": "ReportService",
+        "DATA_IMPORT": "DataFoundationService",
+        "AI_CONTENT_GENERATE": "AIContentService",
+    }.get(normalized, "Service")
+    executor = {
+        "REPORT_GENERATE": "ReportExecutor",
+        "DATA_IMPORT": "DataImportExecutor",
+        "AI_CONTENT_GENERATE": "AIContentExecutor",
+    }.get(normalized, "Executor")
+    result = ("TaskSubmitter", "TaskRunner", executor, service, "ResultAsset")
+    assert len(result) == 5
+    return result
+
+
+def _task_id_value(task: object) -> int:
+    value = getattr(task, "task_id", 0)
+    if not isinstance(value, int) or value <= 0:
+        raise ValueError("task_id must be positive int")
+    return value
+
+
+def _task_text(task: object, field_name: str) -> str:
+    if not isinstance(field_name, str) or not field_name.strip():
+        raise ValueError("field_name must not be empty")
+    value = getattr(task, field_name, "")
+    if value is None:
+        return ""
+    return str(value).strip()
+
+
+def _asset_rows_html(asset: dict[str, object]) -> str:
+    if not isinstance(asset, dict):
+        raise TypeError("asset must be dict")
+    if not asset:
+        return "<li><strong>asset</strong><span>-</span></li>"
+    rows = "".join(
+        f"<li><strong>{_e(key)}</strong><span>{_e(value)}</span></li>"
+        for key, value in sorted(asset.items())
+    )
+    assert rows
+    return rows
+
+
+def _console_can_open_page(user: UserRecord, page: str) -> bool:
+    if not isinstance(user, UserRecord):
+        raise TypeError("user must be UserRecord")
+    if not isinstance(page, str) or not page.strip():
+        raise ValueError("page must not be empty")
+    role = _console_role_key(user.role)
+    if role == "viewer":
+        return False
+    if page == "environment":
+        return role in {"admin", "developer"}
+    return role in {"admin", "developer", "business_owner", "user"}
+
+
+def _console_role_key(role: str) -> str:
+    if not isinstance(role, str):
+        raise TypeError("role must be str")
+    text = role.strip().lower()
+    if not text:
+        raise ValueError("role must not be empty")
+    if any(marker in text for marker in ("admin", "administrator", "???", "?????")):
+        return "admin"
+    if any(marker in text for marker in ("developer", "dev", "??", "???", "??")):
+        return "developer"
+    if any(marker in text for marker in ("business_owner", "business owner", "owner", "?????", "???")):
+        return "business_owner"
+    if any(marker in text for marker in ("viewer", "read_only", "readonly", "???", "??", "??")):
+        return "viewer"
+    return "user"
+
+
+def _task_console_filters_from_query(path: str) -> TaskConsoleFilters:
+    query = parse_qs(urlparse(path).query)
+    result = TaskConsoleFilters(
+        task_type=query.get("task_type", [""])[0].strip(),
+        status=query.get("status", [""])[0].strip(),
+        created_by=query.get("created_by", [""])[0].strip(),
+        brand_id=query.get("brand_id", [""])[0].strip(),
+        business_unit=query.get("business_unit", [""])[0].strip(),
+        platform=query.get("platform", [""])[0].strip(),
+        channel=query.get("channel", [""])[0].strip(),
+    )
+    assert isinstance(result, TaskConsoleFilters)
+    return result
+
 def _task_id_from_api_path(path: str, expected_parts: int) -> int:
     if not isinstance(path, str) or not path.strip():
         raise ValueError("path must not be empty")
@@ -5384,13 +5938,44 @@ def _compact_dates_from_source(value: object) -> list[str]:
     return [item for item in dates if len(item) == 8]
 
 
+def create_intranet_app(config: AppConfig = DEFAULT_CONFIG, container: ApplicationContainer | None = None) -> IntranetApp:
+    if not isinstance(config, AppConfig):
+        raise TypeError("config must be AppConfig")
+    actual_container = container if container is not None else build_application_container(environ=_container_environ_from_app_config(config))
+    app = IntranetApp(config, actual_container)
+    assert isinstance(app, IntranetApp)
+    return app
+
+
+def _container_environ_from_app_config(config: AppConfig) -> dict[str, str]:
+    if not isinstance(config, AppConfig):
+        raise TypeError("config must be AppConfig")
+    runtime_dir = config.database_path.parent
+    result = {
+        "APP_ENV": "development",
+        "DATABASE_BACKEND": "sqlite",
+        "SQLITE_PATH": str(config.database_path),
+        "RUNTIME_DIR": str(runtime_dir),
+        "UPLOAD_DIR": str(config.upload_dir),
+        "RESULT_DIR": str(config.result_dir),
+        "LOG_DIR": str(runtime_dir / "logs"),
+        "TEMPLATE_ROOT": str(config.template_root),
+        "REPORT_TASK_MODE": _report_task_mode(),
+    }
+    assert result["DATABASE_BACKEND"] == "sqlite"
+    return result
+
+
 def main() -> None:
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
-    app = IntranetApp(DEFAULT_CONFIG)
+    app = create_intranet_app(DEFAULT_CONFIG)
     app.initialize()
     server = ThreadingHTTPServer((DEFAULT_CONFIG.host, DEFAULT_CONFIG.port), app.make_handler())
     logging.info("server started: http://%s:%s", DEFAULT_CONFIG.host, DEFAULT_CONFIG.port)
-    server.serve_forever()
+    try:
+        server.serve_forever()
+    finally:
+        app.close()
 
 
 if __name__ == "__main__":

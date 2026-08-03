@@ -70,15 +70,12 @@ class TaskApiTests(unittest.TestCase):
 
     def test_query_task_returns_safe_result_information(self) -> None:
         app = object.__new__(IntranetApp)
-        app._task_query_service = lambda: _TaskQueryService(_task(7, "success", {"result_asset": {"filename": "daily.csv"}}))
-        app._task_result_service = lambda: _TaskResultService(
-            view=TaskResultView(
-                task_id=7,
-                status="success",
-                result_asset={"filename": "daily.csv", "size": 20},
-                filename="daily.csv",
-                file_path="task-results/7/daily.csv",
-            )
+        app._task_console_service = lambda: _TaskConsoleService(
+            detail={
+                "task_id": 7,
+                "filename": "daily.csv",
+                "file_path": "task-results/7/daily.csv",
+            }
         )
         handler = _JsonHandler()
 
@@ -93,16 +90,7 @@ class TaskApiTests(unittest.TestCase):
 
     def test_query_task_forbidden_for_invisible_task(self) -> None:
         app = object.__new__(IntranetApp)
-        app._task_query_service = lambda: _TaskQueryService(_task(7, "success", {"result_asset": {"filename": "daily.csv"}}, created_by="bob"))
-        app._task_result_service = lambda: _TaskResultService(
-            view=TaskResultView(
-                task_id=7,
-                status="success",
-                result_asset={"filename": "daily.csv", "size": 20},
-                filename="daily.csv",
-                file_path="task-results/7/daily.csv",
-            )
-        )
+        app._task_console_service = lambda: _TaskConsoleService(error=PermissionError("forbidden"))
         handler = _JsonHandler()
 
         app._handle_task_api_get(handler, "/api/tasks/7", _user("alice", "operator"))
@@ -136,6 +124,19 @@ class TaskApiTests(unittest.TestCase):
         self.assertEqual(handler.status, 404)
         self.assertEqual(handler.json_body(), {"error": "missing.csv"})
 
+
+class _TaskConsoleService:
+    def __init__(self, detail: dict[str, object] | None = None, error: Exception | None = None) -> None:
+        self._detail = detail or {}
+        self._error = error
+
+    def get_task_detail(self, user: UserRecord, task_id: int) -> dict[str, object]:
+        if self._error is not None:
+            raise self._error
+        return dict(self._detail)
+
+    def list_visible_tasks(self, user: UserRecord, filters: object | None = None) -> dict[str, object]:
+        return {"tasks": [], "total": 0}
 
 class _TaskSubmitter:
     def __init__(self) -> None:
