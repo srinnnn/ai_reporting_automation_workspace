@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import csv
 import hashlib
@@ -4286,7 +4286,6 @@ class IntranetApp:
             )
             if not result_rows:
                 result_rows = "<li><strong>result</strong><span>暂无结果。</span></li>"
-            download_link = self._task_download_button(user, task)
             body = f"""
             <section class="toolbar">
               <div>
@@ -4300,15 +4299,16 @@ class IntranetApp:
             </section>
             <section class="split">
               <article>
-                <h2>状态</h2>
+                <h2>任务信息</h2>
                 <ul class="metrics">
                   <li><strong>task_id</strong><span>{task.task_id}</span></li>
-                  <li><strong>status</strong><span>{_e(task.status)}</span></li>
+                  <li><strong>task_type</strong><span>{_e(task.task_type)}</span></li>
+                  <li><strong>created_by</strong><span>{_e(task.created_by)}</span></li>
                   <li><strong>created_time</strong><span>{_e(task.created_time)}</span></li>
+                  <li><strong>status</strong><span>{_e(task.status)}</span></li>
                   <li><strong>updated_time</strong><span>{_e(task.updated_at or task.created_time)}</span></li>
                 </ul>
                 {error_html}
-                {download_link}
               </article>
               <article>
                 <h2>执行结果</h2>
@@ -4346,33 +4346,29 @@ class IntranetApp:
         if not isinstance(user, UserRecord):
             raise TypeError("user must be UserRecord")
         task_id = _task_id_value(task)
-        available = False
+        status = _task_text(task, "status")
         filename = ""
-        file_path = ""
-        result_asset: dict[str, object] = {}
-        if self._permission_service().can_download_task(user, task):
+        available = False
+        if status == "success" and self._permission_service().can_download_task(user, task):
             try:
                 view = self._task_result_service().get_result(task_id)
-                available = True
                 filename = view.filename
-                file_path = view.file_path
-                result_asset = dict(view.result_asset)
+                available = True
             except (FileNotFoundError, ValueError, TypeError, PermissionError):
                 available = False
-        asset_rows = _asset_rows_html(result_asset)
+        download_html = self._task_download_button(user, task)
+        status_text = "可下载" if available else _task_download_status_text(status)
         result = f"""
         <article class="console-panel task-asset-panel">
-          <h2>Result Asset</h2>
+          <h2>结果文件</h2>
           <dl class="console-definition">
-            <div><dt>download available</dt><dd>{_e(str(available).lower())}</dd></div>
-            <div><dt>filename</dt><dd>{_e(filename or "-")}</dd></div>
-            <div><dt>file_path</dt><dd>{_e(file_path or "-")}</dd></div>
+            <div><dt>结果文件</dt><dd>{_e(filename or "-")}</dd></div>
+            <div><dt>状态</dt><dd>{_e(status_text)}</dd></div>
           </dl>
-          <h3>result_asset</h3>
-          <ul class="metrics">{asset_rows}</ul>
+          {download_html}
         </article>
         """
-        assert "Result Asset" in result
+        assert "结果文件" in result
         return result
 
     def _task_error_diagnostics_panel(self, task: object) -> str:
@@ -4395,14 +4391,22 @@ class IntranetApp:
         return result
 
     def _task_download_button(self, user: UserRecord, task: object) -> str:
-        task_id = task.task_id
+        task_id = _task_id_value(task)
+        status = _task_text(task, "status")
+        if status in {"pending", "running"}:
+            return "<p class='note'>任务完成后可下载</p>"
+        if status == "failed":
+            return "<p class='note'>任务失败，无结果文件</p>"
+        if status != "success":
+            return "<p class='note'>暂无可下载文件</p>"
         if not self._permission_service().can_download_task(user, task):
-            return "<p class='note'>\u6682\u65e0\u53ef\u4e0b\u8f7d\u6587\u4ef6</p>"
+            return "<p class='note'>结果文件不存在</p>"
         try:
             result = self._task_result_service().get_result(task_id)
         except (FileNotFoundError, ValueError, TypeError, PermissionError):
-            return "<p class='note'>\u6682\u65e0\u53ef\u4e0b\u8f7d\u6587\u4ef6</p>"
-        return f"<a class=\"button\" href=\"/api/tasks/{task_id}/download\">\u4e0b\u8f7d\u7ed3\u679c\u6587\u4ef6\uff1a{_e(result.filename)}</a>"
+            return "<p class='note'>结果文件不存在</p>"
+        return f"<a class=\"button\" href=\"/api/tasks/{task_id}/download\">下载结果 CSV：{_e(result.filename)}</a>"
+
     def _automation_task_row(self, task: AutomationTaskRecord) -> str:
         if not isinstance(task, AutomationTaskRecord):
             raise TypeError("task must be AutomationTaskRecord")
@@ -5648,6 +5652,18 @@ def _task_execution_steps(task_type: str) -> tuple[str, ...]:
     return result
 
 
+def _task_download_status_text(status: str) -> str:
+    if not isinstance(status, str):
+        raise TypeError("status must be str")
+    normalized = status.strip().lower()
+    if normalized in {"pending", "running"}:
+        return "任务完成后可下载"
+    if normalized == "failed":
+        return "任务失败，无结果文件"
+    if normalized == "success":
+        return "结果文件不存在"
+    return "暂无可下载文件"
+
 def _task_id_value(task: object) -> int:
     value = getattr(task, "task_id", 0)
     if not isinstance(value, int) or value <= 0:
@@ -5980,4 +5996,9 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+
+
+
+
+
 
