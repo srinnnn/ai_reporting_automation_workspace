@@ -1973,7 +1973,7 @@ class IntranetApp:
         body = f"""
         <section class="toolbar">
           <div>
-            <h1>内网自动化工作台</h1>
+            <h1>运营一组自动化中台</h1>
             <p>当前登录：{_e(user.display_name)} · { _e(user.role) }</p>
           </div>
           <a class="button secondary" href="/logout">退出</a>
@@ -2001,7 +2001,7 @@ class IntranetApp:
           </table>
         </section>
         """
-        return self._page("内网自动化工作台", body)
+        return self._page("运营一组自动化中台", body)
 
     def _group_development_tree_panel(self) -> str:
         dashboard_metrics = self._dashboard_metrics()
@@ -4095,10 +4095,10 @@ class IntranetApp:
         result = f"""
         <section class="console-nav">
           <div>
-            <strong>AI Automation Platform</strong>
+            <strong>?????????</strong>
             <span>{_e(user.display_name)} - {_e(user.role)}</span>
           </div>
-          <nav>{link_html}<a class="console-nav-link" href="/">Business Home</a></nav>
+          <nav>{link_html}<a class="console-nav-link" href="/">??????</a></nav>
         </section>
         """
         assert "console-nav" in result
@@ -5449,7 +5449,7 @@ class IntranetApp:
         error_html = f"<div class='error'>{_e(error)}</div>" if error else ""
         body = f"""
         <section class="login">
-          <h1>内网自动化工作台</h1>
+          <h1>运营一组自动化中台</h1>
           <p>用于组内数据处理、配置自动化和结果留痕。</p>
           {error_html}
           <form method="post" action="/login">
