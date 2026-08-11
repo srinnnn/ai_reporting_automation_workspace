@@ -19,9 +19,9 @@ Reporting Automation 是一个**功能完整但处于治理过渡期**的工程:
 - **数据边界大体建立但未全覆盖**:美团日报/周报(web + task 模式)与 P2 内容生产中心已走 intake → foundation(fact_* 表)且 fail-closed;但**安踏周报/月报初稿仍直接读取 `01_raw_data` 原始文件生成正式 P1 输出**,另有 `/scenario/*/run` 与安踏黑名单入口允许上传 raw 文件直接驱动 P1/P2 处理器——违反 AGENTS.md Mandatory Data Path。
 - **Git / 安全状态良好**:当前 HEAD 与全部 git history(6 commits)未发现真实敏感数据;tracked 的 31 个 xlsx 全为 template、8 个 csv 全为 samples;`.env` 不存在;代码无 secret 形态。Repository 为 PUBLIC 但无已证实的数据泄露,列为 governance finding(建议转 Private),不构成 P0。
 - **架构处于双代过渡**:6004 行的 `app.py` 上帝模块是运行时主体;backend 新层(container/service/repository)已 wiring 且被 console/task API 使用,但 SQLite repository 只是 legacy AppStorage 的转发器;PostgreSQL 为纯 skeleton。任务系统为 feature-flag 灰度(默认 legacy)。
-- **测试基线不可信**:隔离环境安全执行 265 个用例,259 PASS / 6 FAIL(3 个依赖缺失的本地规划排期 xlsx,3 个 task-detail 页面断言与代码文案不同步)。测试本身隔离良好(临时 DB / mock / tempfile),无真实业务环境访问。
+- **测试基线不可信**:隔离环境安全执行 265 个用例,259 PASS / 5 FAIL + 1 ERROR(3 个依赖缺失的本地规划排期 xlsx,3 个 task-detail 页面断言与代码文案不同步)。测试本身隔离良好(临时 DB / mock / tempfile),无真实业务环境访问。
 
-Issue 评级:**P0 = 0, P1 = 3, P2 = 9, P3 = 6**(独立 Issue 18 项,可由 §15 精确反算)。
+Issue 评级:**P0 = 0, P1 = 2, P2 = 9, P3 = 7**(独立 Issue 18 项,可由 §15 精确反算)。
 
 ## 2. Audit Baseline
 
@@ -116,7 +116,7 @@ P1(美团日报/周报, web+task)/ P2(内容中心)
 ### 4.2 运行时主体
 
 - **`intranet_app/app.py`(6004 行)**:`IntranetApp` 类承担全部职责——`handle_get`(436-568,约 30 个分支)/`handle_post`(570-649,约 25 个分支)路由、约 60 个内联 f-string HTML 渲染函数(约 55-58% 行数)、业务 handler、任务编排、container wiring。**无模板引擎、无分层**(ISSUE-02)。
-- **`intranet_app/storage.py`(2009 行)**:`AppStorage` monolithic SQLite DAO,同时管理用户/会话/任务/反馈/效率映射/foundation 事实表 6 大领域,内联大量 DDL(ISSUE-13 归入架构类)。
+- **`intranet_app/storage.py`(2009 行)**:`AppStorage` monolithic SQLite DAO,同时管理用户/会话/任务/反馈/效率映射/foundation 事实表 6 大领域,内联大量 DDL(归入 ISSUE-02 架构类)。
 
 ### 4.3 backend 新层现状
 
@@ -135,7 +135,7 @@ P1(美团日报/周报, web+task)/ P2(内容中心)
 
 ## 5. Code Quality
 
-- **ISSUE-02 (P1)** `app.py` 上帝模块:6004 行混合路由/HTML/业务/编排;单函数超 100 行者众(`_automation_runs_page` 159 行、`_development_roadmap_page` 118 行等)。
+- **ISSUE-02 (P2)** `app.py` 上帝模块:6004 行混合路由/HTML/业务/编排;单函数超 100 行者众(`_automation_runs_page` 159 行、`_development_roadmap_page` 118 行等)。
 - **ISSUE-07 (P2)** 双套 DI 装配重复 + SQLite repository 假分层(见 §4.3)。
 - **ISSUE-15 (P3)** 重复代码:`_group_development_tree_panel` 同名定义两次(app.py:2006-2054 被 2205-2236 覆盖,旧版成死代码);multipart 解析近重复 3 次(`_read_multipart`/`_read_multipart_files`/`_read_file_list`);`_format_efficiency_gain` 与 `_format_time_saved` 结构几乎相同。
 - **ISSUE-12 (P3)** 死代码:`_load_anta_meituan_sources` 全家(app.py:1598-1636、1721-1743、1745-1782,含 Downloads/runtime/intake/01_raw_data fallback)**全仓库无生产调用者**,生产路径用 `_load_anta_meituan_sources_from_foundation`;一旦重新接线即直接违反 AGENTS.md。
@@ -183,9 +183,15 @@ P1(美团日报/周报, web+task)/ P2(内容中心)
 
 ### 7.1 tracked 文件性质
 
-- **31 个 xlsx 全部为 `*_template.xlsx` / `*_example.xlsx`**(位于 `ai_report_config_materials/` 与 `data/templates/`),大小 12-13KB,符合空模板特征。
-- **8 个 csv 全部为 `intranet_app/samples/*_sample.csv`**,大小 225-419 字节,synthetic 样例。
+- **31 个 xlsx 全部为 `*_template.xlsx` / `*_example.xlsx`**(位于 `ai_report_config_materials/` 与 `data/templates/`),大小 12-13KB。
+- **8 个 csv 全部为 `intranet_app/samples/*_sample.csv`**,大小 225-419 字节。
 - 未发现文件名像数据而实际是数据的 tracked 文件。
+
+### 7.1b 结构级扫描(REWORK 补充)
+
+- **XLSX(31 个)结构扫描完成**:每文件 sheet 数 5(例外 `copy_content_template_anta_kids_example.xlsx` 为 3),非空单元格计数 ≤ 191/文件(read_only 上限内),**无任何文件出现大量数据行**;全部符合模板特征(header + 少量示例占位 + 空行)。suspicious_files: **none**。
+- **CSV(8 个)结构扫描完成**:全部 header=yes、data_rows ≤ 3、cols 7-12,确认为 **small synthetic sample**。
+- 未打印任何单元格/文件内容值(仅统计行/列/非空计数)。
 
 ### 7.2 .gitignore 兜底(评价:良好)
 
@@ -200,11 +206,14 @@ P1(美团日报/周报, web+task)/ P2(内容中心)
 
 | 检查项 | 结果 |
 |---|---|
-| Current HEAD tracked 敏感内容 | **未发现**(无 .env/.db/session/token/password/pem/key 形态;grep secret 形态零命中) |
+| Current HEAD tracked 敏感内容 | **No confirmed sensitive data found within audit scope**(无 .env/.db/session/token/password 文件形态;代码 secret 形态 grep 零命中) |
 | Git history 敏感路径 | **未发现**(6 commits `git log --all --name-only` 对 .env/.db/session/cookie/token/secret/password/runtime/outputs/uploads/raw/manual 等零命中) |
+| Git history 内容级 Secret 扫描 | **完成**(6 commits × 关键词 api_key/secret/token/password/cookie/session/bearer/access_key 等 + 赋值形态扫描):48 个赋值命中**全部为 tests/ TEST_FIXTURE**(`default_admin_password`/`api_key` 的 fake 值),无生产代码硬编码密钥 |
 | 本地 .env | 不存在 |
 | Repository visibility | PUBLIC |
-| P0 blocker | **无**(无已证实的数据泄露,不设 P0) |
+| P0 blocker | **无**(无 CONFIRMED_REAL_SECRET / POTENTIAL_REAL_SECRET,不设 P0) |
+
+> 安全结论措辞:审计范围内**未发现已确认的敏感数据**("No confirmed sensitive data found within audit scope.");以上为完整验证结果而非仅"无证据"。
 
 ### 8.2 ISSUE-11 (P2) — Public Repository Governance
 
@@ -282,7 +291,7 @@ FAILED (failures=5, errors=1)
 
 - 无测试访问 `data/local`、真实 SQLite(全部 tempfile)、真实 Bailian/美团/JD/Tmall 网络、真实登录 session;ai_gateway 测试 patch `urlopen` 或注入 fake client;AI 失败 WARNING 为测试内预期路径。
 - 测试写入全部落在 `tempfile.TemporaryDirectory()`。
-- **ISSUE-09 (P2) 测试基线不可信**:6 个失败中 3 个为环境依赖(测试读取 Git 未入库的真实规划排期 xlsx,`app.py:94/2495`),3 个为 task-detail 断言与代码文案不同步——baseline 已提交状态下测试套件即非全绿,无法建立可信回归基线。
+- **ISSUE-09 (P2) 测试基线不可信**:6 个 non-passing(5 FAIL + 1 ERROR)中 3 个为环境依赖(测试读取 Git 未入库的真实规划排期 xlsx,`app.py:94/2495`),3 个为 task-detail 断言与代码文案不同步——baseline 已提交状态下测试套件即非全绿,无法建立可信回归基线。
 
 ## 13. Documentation
 
@@ -308,17 +317,17 @@ FAILED (failures=5, errors=1)
 
 ```
 P0: 0
-P1: 3   (ISSUE-01 安踏周报/月报 raw fallback、ISSUE-02 app.py 上帝模块、ISSUE-03 双配置系统)
-P2: 9   (ISSUE-04 /scenario 上传 raw 直驱 P2、ISSUE-05 安踏黑名单 raw 直驱 P1、
+P1: 2   (ISSUE-01 安踏周报/月报 raw fallback、ISSUE-03 双配置系统)
+P2: 9   (ISSUE-02 app.py 上帝模块、ISSUE-04 /scenario 上传 raw 直驱 P2、ISSUE-05 安踏黑名单 raw 直驱 P1、
         ISSUE-06 默认密钥 fail open、ISSUE-07 backend 假分层+双 DI、ISSUE-08 异常回传无 traceback、
-        ISSUE-09 测试基线不可信、ISSUE-10 本机绝对路径硬编码、ISSUE-11 Public repository governance、
-        ISSUE-12 死代码 _load_anta_meituan_sources)
-P3: 6   (ISSUE-13 PostgreSQL skeleton dead code、ISSUE-14 dashboard 读桌面/下载 Excel、
-        ISSUE-15 重复代码、ISSUE-16 配置 silent fallback/AI_PROVIDER 死配置、
+        ISSUE-09 测试基线不可信、ISSUE-10 本机绝对路径硬编码、ISSUE-11 Public repository governance)
+P3: 7   (ISSUE-12 死代码 _load_anta_meituan_sources、ISSUE-13 PostgreSQL skeleton dead code、
+        ISSUE-14 dashboard 读桌面/下载 Excel、ISSUE-15 重复代码、
+        ISSUE-16 配置 silent fallback/AI_PROVIDER 死配置、
         ISSUE-17 文档编码损坏/文档量大、ISSUE-18 任务系统灰度与 automation 不相通)
 ```
 
-> 计数规则:独立 Issue 18 项 = P1 3 + P2 9 + P3 6,可由 §15.1 Detailed Findings 精确反算。
+> 计数规则:独立 Issue 18 项 = P1 2 + P2 9 + P3 7,可由 §15.1 Detailed Findings 精确反算。
 
 ## 15.1 Detailed Findings
 
@@ -329,7 +338,9 @@ P3: 6   (ISSUE-13 PostgreSQL skeleton dead code、ISSUE-14 dashboard 读桌面/�
 - Recommended direction:对齐美团模式(sync→ingest→fact_* 读取);raw read_table 仅保留 intake/迁移工具。
 - Suggested TASK: **RPT-002**
 
-### ISSUE-02 — app.py 上帝模块 6004 行(P1)
+### ISSUE-02 — app.py 上帝模块 6004 行(P2)
+
+- Severity 说明:由 P1 调整为 P2——当前证据主要是超大模块/职责混合/维护成本,未证明直接数据泄露、数据破坏、重大生产安全事故或当前高概率业务故障;按当前真实风险原则降级。保留 Finding 本身,不删除。
 - Evidence: `intranet_app/app.py` 6004 行;`handle_get`(436-568 约 30 分支)/`handle_post`(570-649 约 25 分支);约 60 个内联 f-string HTML 渲染函数占 55-58% 行数;超长函数 `_automation_runs_page`(3802-3961,159 行)等。
 - observed behavior:路由、HTML 模板、控制器、编排、部分存储调用全部混合;无模板引擎、无分层。
 - Risk:任何修改触碰面大、测试需要 mock 巨对象、交接困难;核心结构严重阻碍开发。
@@ -390,7 +401,9 @@ P3: 6   (ISSUE-13 PostgreSQL skeleton dead code、ISSUE-14 dashboard 读桌面/�
 - Recommended direction:转 Private(由 ChatGPT/用户批准);如转 Private,后续删除 GitHub Actions/分支保护审计另行 TASK。
 - Suggested TASK: RPT-008(governance)
 
-### ISSUE-12 — 死代码 _load_anta_meituan_sources 全家(含 Downloads fallback)(P2)
+### ISSUE-12 — 死代码 _load_anta_meituan_sources 全家(含 Downloads fallback)(P3)
+
+- Severity 说明:由 P2 统一为 P3——`_load_anta_meituan_sources` 及其 helper(`_daily_sources_with_lookback`/`_select_meituan_source`)含 raw/Downloads fallback,但当前审计确认**无生产调用者、unreachable、dead code**;当前风险是未来错误重新 wiring,而非当前正式业务路径正在绕过 foundation。
 - Evidence: `app.py:1598-1636`(`_load_anta_meituan_sources`)、`1721-1743`(`_daily_sources_with_lookback`)、`1745-1782`(`_select_meituan_source`)全仓库无生产调用者;生产路径用 `_load_anta_meituan_sources_from_foundation`(app.py:1041)。
 - Risk:一旦被重新接线即直接违反 AGENTS.md(Downloads/01_raw_data fallback);当前不可达故非数据泄露。
 - Recommended direction:删除或标注 legacy 诊断工具并禁止重新接线。
@@ -432,11 +445,11 @@ P3: 6   (ISSUE-13 PostgreSQL skeleton dead code、ISSUE-14 dashboard 读桌面/�
 
 | TASK | 方向 | 关联 Issue | 建议优先级 |
 |---|---|---|---|
-| **RPT-002** | 数据边界合规:安踏周报/月报/scenario/黑名单改走 foundation | ISSUE-01/04/05 | 高 |
-| **RPT-003** | 架构收敛:app.py 分期拆分 + 单 DI 装配 + 死代码清理 | ISSUE-02/07/12/15/18 | 中 |
-| **RPT-004** | 配置统一:单配置系统 + 密钥 fail-closed + 非法值 fail-closed | ISSUE-03/06/16 | 高 |
+| **RPT-002** | 数据边界合规:安踏周报/月报/scenario/黑名单改走 foundation | ISSUE-01/04/05 | **高 (HIGH)** |
+| **RPT-003** | 架构收敛:app.py 分期拆分 + 单 DI 装配 + 死代码清理 | ISSUE-02/07/12/15/18 | 中(不提升;业务输出优先于架构清理) |
+| **RPT-004** | 配置统一:单配置系统 + 密钥 fail-closed + 非法值 fail-closed | ISSUE-03/06/16 | **高 (HIGH)** |
 | **RPT-005** | 异常/错误响应硬化 + traceback 审计日志 | ISSUE-08 | 中 |
-| **RPT-006** | 测试基线修复:synthetic fixture + 断言同步 | ISSUE-09 | 高 |
+| **RPT-006** | 测试基线修复:synthetic fixture + 断言同步 | ISSUE-09 | **高 (HIGH)** |
 | **RPT-007** | 可移植性:本机绝对路径 → settings/env + 文档命令修复 | ISSUE-10/14 | 中 |
 | **RPT-008** | Repository visibility governance(转 Private) | ISSUE-11 | 中(需 ChatGPT/用户决策) |
 | **RPT-009** | 文档治理:编码修复 + 文档收敛 | ISSUE-17 | 低 |
@@ -488,7 +501,7 @@ ERROR: test_saved_not_improved_state_overrides_default_improved_rule
 4. 复杂度的量化以人工审阅 + 静态扫描为准,未引入 linter/复杂度工具(ruff/lizard 未配置)。
 5. 未执行端到端运行服务验证(未启动 `python -m intranet_app.app`),页面行为以代码审阅 + 单元测试为准。
 6. 浏览器扩展、tools 工具脚本仅做代表性抽查,未逐行审计(非生产核心路径)。
-7. 测试的 6 个失败未修复(AUDIT ONLY);失败根因已记录(3 环境依赖 + 3 断言不同步)。
+7. 测试的 6 个 non-passing(5 FAIL + 1 ERROR)未修复(AUDIT ONLY);失败根因已记录(3 环境依赖 + 3 断言不同步)。
 
 ---
 
