@@ -261,6 +261,7 @@ class ScenarioRegistryTests(unittest.TestCase):
         self.assertIn('href="/workspace/category?brand=ANTA&category=P3"', page)
         self.assertIn("1 个能力", page)
         self.assertIn("0 个能力", page)
+        self.assertNotIn("隐藏能力", page)
         self.assertNotIn("安踏周报/月报", page)
         self.assertNotIn("安踏即时零售", page)
         self.assertNotIn("ECCO活动配置", page)
@@ -268,6 +269,25 @@ class ScenarioRegistryTests(unittest.TestCase):
         self.assertNotIn("博世/西门子短彩信规划复核", page)
         self.assertNotIn("AI选品辅助", page)
         self.assertNotIn("文案内容辅助", page)
+
+    def test_workspace_overview_uses_brand_scoped_summary_metrics(self) -> None:
+        app = _workspace_app()
+        cases = {
+            "ANTA": 2,
+            "ECCO": 1,
+            "BSH": 2,
+        }
+
+        for brand_key, active_priority_count in cases.items():
+            with self.subTest(brand_key=brand_key):
+                page = app._workspace_overview_page(_user(), brand_key)
+                self.assertIn(
+                    f"<article><span>已接分类</span><strong>{active_priority_count}</strong></article>",
+                    page,
+                )
+                self.assertNotIn("隐藏能力", page)
+                self.assertNotIn("AI选品辅助", page)
+                self.assertNotIn("文案内容辅助", page)
 
     def test_workspace_category_route_keeps_brand_and_category_context(self) -> None:
         app = _workspace_app()

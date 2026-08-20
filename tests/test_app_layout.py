@@ -13,6 +13,30 @@ from intranet_app.storage import UserRecord
 
 
 class AppLayoutTests(unittest.TestCase):
+    def test_workspace_overview_summary_uses_brand_scoped_metrics(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            (root / "materials").mkdir()
+            app = IntranetApp(_config(root))
+            app.storage = _EmptyStorage()
+            user = UserRecord(1, "admin", "系统管理员", "管理员", PasswordHash("salt", "digest"))
+            cases = {
+                "ANTA": 2,
+                "ECCO": 1,
+                "BSH": 2,
+            }
+
+            for brand_key, active_priority_count in cases.items():
+                with self.subTest(brand_key=brand_key):
+                    workspace = app._workspace_overview_page(user, brand_key)
+                    self.assertIn(
+                        f"<article><span>已接分类</span><strong>{active_priority_count}</strong></article>",
+                        workspace,
+                    )
+                    self.assertNotIn("隐藏能力", workspace)
+                    self.assertNotIn("AI选品辅助", workspace)
+                    self.assertNotIn("文案内容辅助", workspace)
+
     def test_dashboard_prioritizes_priority_entry_and_moves_project_stages_to_secondary_page(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)
@@ -57,6 +81,8 @@ class AppLayoutTests(unittest.TestCase):
             self.assertIn("配置提效", workspace)
             self.assertIn("P4", workspace)
             self.assertIn("复查", workspace)
+            self.assertIn("<article><span>已接分类</span><strong>2</strong></article>", workspace)
+            self.assertNotIn("隐藏能力", workspace)
             self.assertNotIn("安踏周报/月报", workspace)
             self.assertNotIn("安踏即时零售", workspace)
 

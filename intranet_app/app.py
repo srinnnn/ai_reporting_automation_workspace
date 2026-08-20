@@ -2206,11 +2206,7 @@ class IntranetApp:
             for priority, title, description in PRIORITY_SECTIONS
         )
         capability_count = sum(len(keys) for keys in grouped_keys.values())
-        hidden_count = len(self.scenarios) - sum(
-            len(keys)
-            for option in _workspace_brand_options(self.scenarios)
-            for keys in _workspace_scenario_keys_by_priority(self.scenarios, option.key).values()
-        )
+        active_priority_count = sum(1 for keys in grouped_keys.values() if keys)
         body = f"""
         <div class="platform-layout">
           {self._platform_sidebar("workspace")}
@@ -2227,7 +2223,7 @@ class IntranetApp:
               <article><span>品牌状态</span><strong>已接入</strong></article>
               <article><span>能力数量</span><strong>{capability_count}</strong></article>
               <article><span>分类数量</span><strong>{len(PRIORITY_SECTIONS)}</strong></article>
-              <article><span>隐藏能力</span><strong>{hidden_count}</strong></article>
+              <article><span>已接分类</span><strong>{active_priority_count}</strong></article>
             </section>
             <section class="platform-section">
               <div class="section-heading">
