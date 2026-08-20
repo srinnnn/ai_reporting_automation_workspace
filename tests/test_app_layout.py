@@ -13,6 +13,30 @@ from intranet_app.storage import UserRecord
 
 
 class AppLayoutTests(unittest.TestCase):
+    def test_workspace_overview_summary_uses_brand_scoped_metrics(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            (root / "materials").mkdir()
+            app = IntranetApp(_config(root))
+            app.storage = _EmptyStorage()
+            user = UserRecord(1, "admin", "系统管理员", "管理员", PasswordHash("salt", "digest"))
+            cases = {
+                "ANTA": 2,
+                "ECCO": 1,
+                "BSH": 2,
+            }
+
+            for brand_key, active_priority_count in cases.items():
+                with self.subTest(brand_key=brand_key):
+                    workspace = app._workspace_overview_page(user, brand_key)
+                    self.assertIn(
+                        f"<article><span>已接分类</span><strong>{active_priority_count}</strong></article>",
+                        workspace,
+                    )
+                    self.assertNotIn("隐藏能力", workspace)
+                    self.assertNotIn("AI选品辅助", workspace)
+                    self.assertNotIn("文案内容辅助", workspace)
+
     def test_dashboard_prioritizes_priority_entry_and_moves_project_stages_to_secondary_page(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)
@@ -23,46 +47,56 @@ class AppLayoutTests(unittest.TestCase):
 
             dashboard = app._dashboard(user)
 
-            self.assertIn("当前品牌工作台", dashboard)
-            self.assertIn('class="brand-workspace-selector"', dashboard)
-            self.assertIn('<option value="ANTA" selected>ANTA 安踏</option>', dashboard)
-            self.assertIn('<option value="ECCO">ECCO</option>', dashboard)
-            self.assertIn('<option value="BSH">BSH 博西</option>', dashboard)
-            self.assertNotIn('<option value="多品牌"', dashboard)
-            self.assertNotIn('<option value="博西"', dashboard)
-            self.assertNotIn('<option value="博世/西门子"', dashboard)
-            self.assertIn("P1 · 数据提效", dashboard)
-            self.assertIn("P2 · 内容提效", dashboard)
-            self.assertIn("P3 · 配置提效", dashboard)
-            self.assertIn("P4 · 复查", dashboard)
+            self.assertIn("中台全局首页", dashboard)
+            self.assertIn("品牌 Workspace 入口", dashboard)
+            self.assertIn('href="/workspace?brand=ANTA"', dashboard)
+            self.assertIn('href="/workspace?brand=ECCO"', dashboard)
+            self.assertIn('href="/workspace?brand=BSH"', dashboard)
             self.assertNotIn("巡查", dashboard)
-            self.assertIn("安踏周报/月报", dashboard)
-            self.assertIn("安踏即时零售", dashboard)
-            self.assertIn('href="/anta-reporting"', dashboard)
-            self.assertIn('href="/anta-retail"', dashboard)
+            self.assertNotIn("当前品牌工作台", dashboard)
+            self.assertNotIn("安踏周报/月报", dashboard)
+            self.assertNotIn("安踏即时零售", dashboard)
             self.assertNotIn("ECCO活动配置", dashboard)
+            self.assertNotIn("博西短彩信数据处理", dashboard)
             self.assertNotIn("博世/西门子短彩信规划复核", dashboard)
             self.assertNotIn("AI选品辅助", dashboard)
             self.assertNotIn("文案内容辅助", dashboard)
-            self.assertNotIn("全组项目开发与覆盖总览", dashboard)
-            self.assertNotIn("开发覆盖总览", dashboard)
             self.assertIn("最近处理记录", dashboard)
-            self.assertEqual(dashboard.count('href="/data-foundation"'), 1)
-            self.assertEqual(dashboard.count('href="/automation-runs"'), 1)
-            self.assertEqual(dashboard.count('href="/archive-intake"'), 1)
-            self.assertEqual(dashboard.count('href="/work-item-planning"'), 1)
+            self.assertIn('href="/data-foundation"', dashboard)
+            self.assertIn('href="/automation-runs"', dashboard)
+            self.assertIn('href="/archive-intake"', dashboard)
             self.assertNotIn('href="/p2-content-center"', dashboard)
             self.assertNotIn('href="/archive-index"', dashboard)
             self.assertNotIn('href="/data-dictionary"', dashboard)
             self.assertIn("parseDurationHours", dashboard)
             self.assertIn("formatTimeSaved", dashboard)
 
-            p2_page = app._priority_page(user, "P2", "ANTA")
+            workspace = app._workspace_overview_page(user, "ANTA")
+            self.assertIn("ANTA 安踏", workspace)
+            self.assertIn("P1", workspace)
+            self.assertIn("数据提效", workspace)
+            self.assertIn("P2", workspace)
+            self.assertIn("内容提效", workspace)
+            self.assertIn("P3", workspace)
+            self.assertIn("配置提效", workspace)
+            self.assertIn("P4", workspace)
+            self.assertIn("复查", workspace)
+            self.assertIn("<article><span>已接分类</span><strong>2</strong></article>", workspace)
+            self.assertNotIn("隐藏能力", workspace)
+            self.assertNotIn("安踏周报/月报", workspace)
+            self.assertNotIn("安踏即时零售", workspace)
+
+            p2_page = app._workspace_category_page(user, "ANTA", "P2")
             self.assertIn("P2 · 内容提效", p2_page)
             self.assertIn("当前品牌暂无接入能力", p2_page)
             self.assertNotIn("P2内容生产中心", p2_page)
             self.assertNotIn("AI选品辅助", p2_page)
             self.assertNotIn("文案内容辅助", p2_page)
+
+            p1_page = app._workspace_category_page(user, "ANTA", "P1")
+            self.assertIn("安踏周报/月报", p1_page)
+            self.assertIn('href="/anta-reporting"', p1_page)
+            self.assertNotIn("安踏即时零售", p1_page)
 
             work_items = app._work_item_planning_page(user)
             self.assertIn("<h1>38个可提效项目明细</h1>", work_items)

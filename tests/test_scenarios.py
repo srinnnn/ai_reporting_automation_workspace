@@ -172,40 +172,42 @@ class ScenarioRegistryTests(unittest.TestCase):
 
     def test_anta_reporting_keeps_existing_route_from_workspace(self) -> None:
         app = _workspace_app()
-        dashboard = app._dashboard(_user(), "ANTA")
+        page = app._workspace_category_page(_user(), "ANTA", "P1")
 
         self.assertEqual(app._scenario_href(anta_reporting.MODULE_KEY), "/anta-reporting")
-        self.assertIn('href="/anta-reporting"', dashboard)
-        self.assertIn("安踏周报/月报", dashboard)
+        self.assertIn('href="/anta-reporting"', page)
+        self.assertIn("安踏周报/月报", page)
 
     def test_bsh_capabilities_keep_existing_routes_from_workspace(self) -> None:
         app = _workspace_app()
-        dashboard = app._dashboard(_user(), "BSH")
+        p1_page = app._workspace_category_page(_user(), "BSH", "P1")
+        p4_page = app._workspace_category_page(_user(), "BSH", "P4")
 
         self.assertEqual(app._scenario_href(bosch_sms.MODULE_KEY), "/scenario/bosch_sms")
         self.assertEqual(app._scenario_href(BOSCH_SMS_REVIEW_KEY), "/scenario/bosch_sms_review")
-        self.assertIn('href="/scenario/bosch_sms"', dashboard)
-        self.assertIn('href="/scenario/bosch_sms_review"', dashboard)
+        self.assertIn('href="/scenario/bosch_sms"', p1_page)
+        self.assertIn('href="/scenario/bosch_sms_review"', p4_page)
 
     def test_invalid_workspace_brand_fails_closed_to_valid_brand_without_leakage(self) -> None:
         app = _workspace_app()
-        dashboard = app._dashboard(_user(), "UNKNOWN")
+        workspace = app._workspace_overview_page(_user(), "UNKNOWN")
 
         self.assertEqual(_normalize_workspace_brand_key("UNKNOWN", app.scenarios), "ANTA")
-        self.assertIn("ANTA 安踏", dashboard)
-        self.assertIn("安踏周报/月报", dashboard)
-        self.assertIn("安踏即时零售", dashboard)
-        self.assertNotIn("ECCO活动配置", dashboard)
-        self.assertNotIn("博世/西门子短彩信规划复核", dashboard)
+        self.assertIn("ANTA 安踏", workspace)
+        self.assertIn("P1 · 数据提效", workspace)
+        self.assertIn("P3 · 配置提效", workspace)
+        self.assertNotIn("ECCO活动配置", workspace)
+        self.assertNotIn("博世/西门子短彩信规划复核", workspace)
 
     def test_workspace_ui_uses_review_language_for_p4(self) -> None:
         app = _workspace_app()
-        dashboard = app._dashboard(_user(), "ANTA")
-        p4_page = app._priority_page(_user(), "P4", "ANTA")
+        workspace = app._workspace_overview_page(_user(), "ANTA")
+        p4_page = app._workspace_category_page(_user(), "ANTA", "P4")
 
-        self.assertIn("P4 · 复查", dashboard)
+        self.assertIn("P4", workspace)
+        self.assertIn("复查", workspace)
         self.assertIn("P4 · 复查", p4_page)
-        self.assertNotIn("巡查", dashboard)
+        self.assertNotIn("巡查", workspace)
         self.assertNotIn("巡查", p4_page)
 
     def test_priority_route_uses_workspace_brand_query_on_handle_get(self) -> None:
@@ -221,7 +223,104 @@ class ScenarioRegistryTests(unittest.TestCase):
         self.assertIn("ANTA 安踏", page)
         self.assertIn("安踏周报/月报", page)
         self.assertIn('href="/anta-reporting"', page)
+        self.assertIn('href="/workspace?brand=ANTA"', page)
         self.assertNotIn("ECCO活动配置", page)
+        self.assertNotIn("博世/西门子短彩信规划复核", page)
+
+    def test_home_route_is_global_overview_and_links_to_workspaces(self) -> None:
+        app = _workspace_app()
+        sent: dict[str, object] = {}
+        app._context = lambda handler: RequestContext(_user(), "token")  # type: ignore[method-assign]
+        app._send_html = lambda handler, content, status=200: sent.update({"content": content, "status": status})  # type: ignore[method-assign]
+
+        app.handle_get(SimpleNamespace(path="/"))
+
+        page = str(sent["content"])
+        self.assertEqual(sent["status"], 200)
+        self.assertIn("中台全局首页", page)
+        self.assertIn("品牌 Workspace 入口", page)
+        self.assertIn('href="/workspace?brand=ANTA"', page)
+        self.assertIn('href="/workspace?brand=ECCO"', page)
+        self.assertIn('href="/workspace?brand=BSH"', page)
+        self.assertNotIn("当前品牌工作台", page)
+        self.assertNotIn("安踏周报/月报", page)
+        self.assertNotIn("安踏即时零售", page)
+        self.assertNotIn("ECCO活动配置", page)
+        self.assertNotIn("博西短彩信数据处理", page)
+        self.assertNotIn("博世/西门子短彩信规划复核", page)
+        self.assertNotIn("AI选品辅助", page)
+        self.assertNotIn("文案内容辅助", page)
+
+    def test_workspace_overview_shows_category_entries_without_full_capability_list(self) -> None:
+        app = _workspace_app()
+        page = app._workspace_overview_page(_user(), "ANTA")
+
+        self.assertIn("ANTA 安踏", page)
+        self.assertIn("能力分类", page)
+        self.assertIn('href="/workspace/category?brand=ANTA&category=P1"', page)
+        self.assertIn('href="/workspace/category?brand=ANTA&category=P3"', page)
+        self.assertIn("1 个能力", page)
+        self.assertIn("0 个能力", page)
+        self.assertNotIn("隐藏能力", page)
+        self.assertNotIn("安踏周报/月报", page)
+        self.assertNotIn("安踏即时零售", page)
+        self.assertNotIn("ECCO活动配置", page)
+        self.assertNotIn("博西短彩信数据处理", page)
+        self.assertNotIn("博世/西门子短彩信规划复核", page)
+        self.assertNotIn("AI选品辅助", page)
+        self.assertNotIn("文案内容辅助", page)
+
+    def test_workspace_overview_uses_brand_scoped_summary_metrics(self) -> None:
+        app = _workspace_app()
+        cases = {
+            "ANTA": 2,
+            "ECCO": 1,
+            "BSH": 2,
+        }
+
+        for brand_key, active_priority_count in cases.items():
+            with self.subTest(brand_key=brand_key):
+                page = app._workspace_overview_page(_user(), brand_key)
+                self.assertIn(
+                    f"<article><span>已接分类</span><strong>{active_priority_count}</strong></article>",
+                    page,
+                )
+                self.assertNotIn("隐藏能力", page)
+                self.assertNotIn("AI选品辅助", page)
+                self.assertNotIn("文案内容辅助", page)
+
+    def test_workspace_category_route_keeps_brand_and_category_context(self) -> None:
+        app = _workspace_app()
+        sent: dict[str, object] = {}
+        app._context = lambda handler: RequestContext(_user(), "token")  # type: ignore[method-assign]
+        app._send_html = lambda handler, content, status=200: sent.update({"content": content, "status": status})  # type: ignore[method-assign]
+
+        app.handle_get(SimpleNamespace(path="/workspace/category?brand=ANTA&category=P1"))
+
+        page = str(sent["content"])
+        self.assertEqual(sent["status"], 200)
+        self.assertIn("ANTA 安踏", page)
+        self.assertIn("P1 · 数据提效", page)
+        self.assertIn("安踏周报/月报", page)
+        self.assertIn('href="/anta-reporting"', page)
+        self.assertNotIn("安踏即时零售", page)
+        self.assertNotIn("ECCO活动配置", page)
+        self.assertNotIn("博西短彩信数据处理", page)
+        self.assertNotIn("AI选品辅助", page)
+        self.assertNotIn("文案内容辅助", page)
+
+    def test_invalid_workspace_category_returns_404_without_brand_leakage(self) -> None:
+        app = _workspace_app()
+        sent: dict[str, object] = {}
+        app._context = lambda handler: RequestContext(_user(), "token")  # type: ignore[method-assign]
+        app._send_html = lambda handler, content, status=200: sent.update({"content": content, "status": status})  # type: ignore[method-assign]
+
+        app.handle_get(SimpleNamespace(path="/workspace/category?brand=BSH&category=P9"))
+
+        page = str(sent["content"])
+        self.assertEqual(sent["status"], 404)
+        self.assertIn("未找到对应品牌分类", page)
+        self.assertNotIn("博西短彩信数据处理", page)
         self.assertNotIn("博世/西门子短彩信规划复核", page)
 
     def test_bsh_priority_routes_use_workspace_brand_query_on_handle_get(self) -> None:
@@ -250,27 +349,31 @@ class ScenarioRegistryTests(unittest.TestCase):
     def test_workspace_pages_isolate_capability_cards_by_brand(self) -> None:
         app = _workspace_app()
         pages = {
-            "ANTA": app._dashboard(_user(), "ANTA"),
-            "ECCO": app._dashboard(_user(), "ECCO"),
-            "BSH": app._dashboard(_user(), "BSH"),
+            "ANTA_P1": app._workspace_category_page(_user(), "ANTA", "P1"),
+            "ANTA_P3": app._workspace_category_page(_user(), "ANTA", "P3"),
+            "ECCO_P3": app._workspace_category_page(_user(), "ECCO", "P3"),
+            "BSH_P1": app._workspace_category_page(_user(), "BSH", "P1"),
+            "BSH_P4": app._workspace_category_page(_user(), "BSH", "P4"),
         }
         visible_by_workspace = {
-            "ANTA": {"安踏周报/月报", "安踏即时零售"},
-            "ECCO": {"ECCO活动配置"},
-            "BSH": {"博西短彩信数据处理", "博世/西门子短彩信规划复核"},
+            "ANTA_P1": {"安踏周报/月报"},
+            "ANTA_P3": {"安踏即时零售"},
+            "ECCO_P3": {"ECCO活动配置"},
+            "BSH_P1": {"博西短彩信数据处理"},
+            "BSH_P4": {"博世/西门子短彩信规划复核"},
         }
         hidden_everywhere = {"AI选品辅助", "文案内容辅助"}
 
-        for workspace_key, page in pages.items():
-            for capability in visible_by_workspace[workspace_key]:
+        for page_key, page in pages.items():
+            for capability in visible_by_workspace[page_key]:
                 self.assertIn(capability, page)
-            other_capabilities = set().union(*visible_by_workspace.values()) - visible_by_workspace[workspace_key]
+            other_capabilities = set().union(*visible_by_workspace.values()) - visible_by_workspace[page_key]
             for capability in other_capabilities | hidden_everywhere:
                 self.assertNotIn(capability, page)
 
     def test_workspace_selector_uses_only_workspace_keys(self) -> None:
         app = _workspace_app()
-        dashboard = app._dashboard(_user(), "BSH")
+        dashboard = app._workspace_overview_page(_user(), "BSH")
 
         self.assertIn('<option value="ANTA">ANTA 安踏</option>', dashboard)
         self.assertIn('<option value="ECCO">ECCO</option>', dashboard)
@@ -306,6 +409,7 @@ def _scenario_href(scenario_key: str) -> str:
 
 def _workspace_app() -> IntranetApp:
     app = object.__new__(IntranetApp)
+    app.config = SimpleNamespace(template_root=_template_root())
     app.scenarios = build_scenarios(_template_root())
     app.storage = _EmptyStorage()
     return app
