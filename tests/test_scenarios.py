@@ -2,8 +2,17 @@ from __future__ import annotations
 
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
 
-from intranet_app.app import IntranetApp
+from intranet_app.app import (
+    IntranetApp,
+    RequestContext,
+    _normalize_workspace_brand_key,
+    _workspace_brand_for_source_brand,
+    _workspace_brand_options,
+    _workspace_scenario_keys_by_priority,
+)
+from intranet_app.auth import PasswordHash
 from intranet_app.processors import ai_selection, anta_reporting, bosch_sms, copy_content
 from intranet_app.scenarios import (
     ANTA_RETAIL_KEY,
@@ -11,6 +20,7 @@ from intranet_app.scenarios import (
     ECCO_ACTIVITY_CONFIG_KEY,
     build_scenarios,
 )
+from intranet_app.storage import UserRecord
 
 
 class ScenarioRegistryTests(unittest.TestCase):
@@ -73,6 +83,83 @@ class ScenarioRegistryTests(unittest.TestCase):
         self.assertNotIn("workspace_brand", Path("intranet_app/scenarios.py").read_text(encoding="utf-8"))
         self.assertNotIn("brand selector", Path("intranet_app/scenarios.py").read_text(encoding="utf-8").lower())
 
+    def test_workspace_brand_normalization_maps_anta_source_brands(self) -> None:
+        self.assertEqual(_workspace_brand_for_source_brand("安踏儿童").key, "ANTA")
+        self.assertEqual(_workspace_brand_for_source_brand("安踏即时零售").key, "ANTA")
+
+    def test_multi_brand_is_not_workspace_selector_option(self) -> None:
+        scenarios = build_scenarios(_template_root())
+        options = _workspace_brand_options(scenarios)
+
+        self.assertEqual([option.key for option in options], ["ANTA"])
+        self.assertNotIn("多品牌", {option.label for option in options})
+        self.assertIsNone(_workspace_brand_for_source_brand("多品牌"))
+
+    def test_anta_workspace_filter_includes_only_anta_capabilities(self) -> None:
+        scenarios = build_scenarios(_template_root())
+        grouped = _workspace_scenario_keys_by_priority(scenarios, "ANTA")
+        workspace_keys = {key for keys in grouped.values() for key in keys}
+
+        self.assertEqual(workspace_keys, {anta_reporting.MODULE_KEY, ANTA_RETAIL_KEY})
+        self.assertNotIn(ECCO_ACTIVITY_CONFIG_KEY, workspace_keys)
+        self.assertNotIn(BOSCH_SMS_REVIEW_KEY, workspace_keys)
+
+    def test_anta_workspace_uses_scenario_priority_without_duplication(self) -> None:
+        scenarios = build_scenarios(_template_root())
+        grouped = _workspace_scenario_keys_by_priority(scenarios, "ANTA")
+
+        self.assertEqual(grouped["P1"], (anta_reporting.MODULE_KEY,))
+        self.assertEqual(grouped["P3"], (ANTA_RETAIL_KEY,))
+        self.assertEqual(grouped["P2"], ())
+        self.assertEqual(grouped["P4"], ())
+        all_grouped_keys = [key for keys in grouped.values() for key in keys]
+        self.assertEqual(len(all_grouped_keys), len(set(all_grouped_keys)))
+
+    def test_anta_reporting_keeps_existing_route_from_workspace(self) -> None:
+        app = _workspace_app()
+        dashboard = app._dashboard(_user(), "ANTA")
+
+        self.assertEqual(app._scenario_href(anta_reporting.MODULE_KEY), "/anta-reporting")
+        self.assertIn('href="/anta-reporting"', dashboard)
+        self.assertIn("安踏周报/月报", dashboard)
+
+    def test_invalid_workspace_brand_fails_closed_to_valid_brand_without_leakage(self) -> None:
+        app = _workspace_app()
+        dashboard = app._dashboard(_user(), "UNKNOWN")
+
+        self.assertEqual(_normalize_workspace_brand_key("UNKNOWN", app.scenarios), "ANTA")
+        self.assertIn("ANTA 安踏", dashboard)
+        self.assertIn("安踏周报/月报", dashboard)
+        self.assertIn("安踏即时零售", dashboard)
+        self.assertNotIn("ECCO活动配置", dashboard)
+        self.assertNotIn("博世/西门子短彩信规划复核", dashboard)
+
+    def test_workspace_ui_uses_review_language_for_p4(self) -> None:
+        app = _workspace_app()
+        dashboard = app._dashboard(_user(), "ANTA")
+        p4_page = app._priority_page(_user(), "P4", "ANTA")
+
+        self.assertIn("P4 · 复查", dashboard)
+        self.assertIn("P4 · 复查", p4_page)
+        self.assertNotIn("巡查", dashboard)
+        self.assertNotIn("巡查", p4_page)
+
+    def test_priority_route_uses_workspace_brand_query_on_handle_get(self) -> None:
+        app = _workspace_app()
+        sent: dict[str, object] = {}
+        app._context = lambda handler: RequestContext(_user(), "token")  # type: ignore[method-assign]
+        app._send_html = lambda handler, content, status=200: sent.update({"content": content, "status": status})  # type: ignore[method-assign]
+
+        app.handle_get(SimpleNamespace(path="/priority/P1?brand=ANTA"))
+
+        page = str(sent["content"])
+        self.assertEqual(sent["status"], 200)
+        self.assertIn("ANTA 安踏", page)
+        self.assertIn("安踏周报/月报", page)
+        self.assertIn('href="/anta-reporting"', page)
+        self.assertNotIn("ECCO活动配置", page)
+        self.assertNotIn("博世/西门子短彩信规划复核", page)
+
 
 def _template_root() -> Path:
     return Path("ai_report_config_materials")
@@ -81,6 +168,22 @@ def _template_root() -> Path:
 def _scenario_href(scenario_key: str) -> str:
     app = object.__new__(IntranetApp)
     return app._scenario_href(scenario_key)
+
+
+def _workspace_app() -> IntranetApp:
+    app = object.__new__(IntranetApp)
+    app.scenarios = build_scenarios(_template_root())
+    app.storage = _EmptyStorage()
+    return app
+
+
+def _user() -> UserRecord:
+    return UserRecord(1, "admin", "系统管理员", "管理员", PasswordHash("salt", "digest"))
+
+
+class _EmptyStorage:
+    def list_jobs(self) -> list[object]:
+        return []
 
 
 if __name__ == "__main__":
