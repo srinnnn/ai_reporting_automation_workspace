@@ -567,8 +567,19 @@ class IntranetApp:
             self._redirect(handler, "/login")
             return
         if path == "/":
+            self._send_html(handler, self._dashboard(context.user))
+            return
+        if path == "/workspace":
             workspace_brand_key = query.get("brand", [""])[0]
-            self._send_html(handler, self._dashboard(context.user, workspace_brand_key))
+            self._send_html(handler, self._workspace_overview_page(context.user, workspace_brand_key))
+            return
+        if path == "/workspace/category":
+            workspace_brand_key = query.get("brand", [""])[0]
+            priority = query.get("category", [""])[0].upper()
+            if priority not in {item[0] for item in PRIORITY_SECTIONS}:
+                self._send_html(handler, self._page("分类不存在", "<p>未找到对应品牌分类。</p>"), status=404)
+                return
+            self._send_html(handler, self._workspace_category_page(context.user, workspace_brand_key, priority))
             return
         if path == "/console":
             self._send_html(handler, self._console_dashboard_page(context.user))
@@ -667,7 +678,7 @@ class IntranetApp:
             priority = unquote(path.removeprefix("/priority/")).strip("/").upper()
             if priority in {item[0] for item in PRIORITY_SECTIONS}:
                 workspace_brand_key = query.get("brand", [""])[0]
-                self._send_html(handler, self._priority_page(context.user, priority, workspace_brand_key))
+                self._send_html(handler, self._workspace_category_page(context.user, workspace_brand_key, priority))
                 return
         if path.startswith("/scenario/"):
             scenario_key = unquote(path.removeprefix("/scenario/")).strip("/")
@@ -2081,59 +2092,175 @@ class IntranetApp:
     def _dashboard(self, user: UserRecord, workspace_brand_key: str = "") -> str:
         if not isinstance(user, UserRecord):
             raise TypeError("user must be UserRecord")
-        current_brand_key = _normalize_workspace_brand_key(workspace_brand_key, self.scenarios)
-        current_brand = _workspace_brand_by_key(current_brand_key, self.scenarios)
-        grouped_keys = _workspace_scenario_keys_by_priority(self.scenarios, current_brand.key)
-        brand_selector = self._workspace_brand_selector(current_brand.key)
-        priority_nav = self._workspace_priority_nav(current_brand.key, "")
-        workspace_sections = "".join(
-            self._workspace_priority_section(current_brand.key, priority, title, description, grouped_keys[priority])
-            for priority, title, description in PRIORITY_SECTIONS
+        if not isinstance(workspace_brand_key, str):
+            raise TypeError("workspace_brand_key must be str")
+        workspace_cards = "".join(self._workspace_entry_card(option) for option in _workspace_brand_options(self.scenarios))
+        metric_cards = "".join(
+            f"<article><span>{_e(label)}</span><strong>{_e(value)}</strong></article>"
+            for label, value in self._dashboard_metrics()
         )
         job_rows = "".join(self._job_row(job) for job in self.storage.list_jobs())
         if not job_rows:
             job_rows = "<tr><td colspan='7'>暂无处理记录</td></tr>"
         body = f"""
-        <section class="toolbar">
-          <div>
-            <h1>运营一组自动化中台</h1>
-            <p>当前登录：{_e(user.display_name)} · { _e(user.role) }</p>
+        <div class="platform-layout">
+          {self._platform_sidebar("home")}
+          <div class="platform-main">
+            <section class="toolbar platform-topbar">
+              <div>
+                <h1>中台全局首页</h1>
+                <p>当前登录：{_e(user.display_name)} · {_e(user.role)}</p>
+              </div>
+              <a class="button secondary" href="/logout">退出</a>
+            </section>
+            <section class="platform-hero">
+              <div>
+                <span class="eyebrow">Middle Platform</span>
+                <h2>运营一组自动化中台</h2>
+                <p>统一进入品牌工作台、数据入库、自动化执行和资料投递；首页只展示全局概览和品牌入口。</p>
+              </div>
+              <div class="button-row">
+                <a class="button" href="/data-foundation">数据入库中心</a>
+                <a class="button secondary" href="/automation-runs">自动化数据执行</a>
+                <a class="button secondary" href="/archive-intake">投递资料</a>
+              </div>
+            </section>
+            <section class="platform-kpi-grid">{metric_cards}</section>
+            <section class="platform-section">
+              <div class="section-heading">
+                <h2>品牌 Workspace 入口</h2>
+                <p>选择品牌后进入单品牌概览，再按 P1-P4 查看分类详情。</p>
+              </div>
+              <div class="workspace-entry-grid">{workspace_cards}</div>
+            </section>
+            <section class="platform-section" id="recent-jobs">
+              <div class="section-heading">
+                <h2>最近处理记录</h2>
+                <p>来自系统真实处理记录，不展示演示数据。</p>
+              </div>
+              <table>
+                <thead><tr><th>编号</th><th>模块</th><th>品牌</th><th>类型</th><th>提交人</th><th>时间</th><th>结果</th></tr></thead>
+                <tbody>{job_rows}</tbody>
+              </table>
+            </section>
           </div>
-          <a class="button secondary" href="/logout">退出</a>
-        </section>
-        <section class="dashboard-hero">
-          <div>
-            <h2>当前品牌工作台</h2>
-            <p>{_e(current_brand.label)} · 按 P1-P4 查看当前品牌已接入能力，并进入既有业务页面。</p>
-          </div>
-          <div class="button-row">
-            <a class="button" href="/data-foundation">数据入库中心</a>
-            <a class="button" href="/automation-runs">自动化数据执行</a>
-            <a class="button" href="/archive-intake">投递资料</a>
-            <a class="button secondary" href="/work-item-planning">可提效项目明细</a>
-          </div>
-        </section>
-        <section class="brand-workspace-panel">
-          {brand_selector}
-          <div class="current-brand-summary">
-            <span>Current Brand</span>
-            <strong>{_e(current_brand.label)}</strong>
-          </div>
-        </section>
-        <h2 class="section-title">P1-P4 工作分类</h2>
-        <section class="workspace-priority-nav">{priority_nav}</section>
-        <section class="workspace-capability-stack">{workspace_sections}</section>
-        <section>
-          <h2>最近处理记录</h2>
-          <table>
-            <thead><tr><th>编号</th><th>模块</th><th>品牌</th><th>类型</th><th>提交人</th><th>时间</th><th>结果</th></tr></thead>
-            <tbody>{job_rows}</tbody>
-          </table>
-        </section>
+        </div>
         """
-        assert current_brand.label in body
+        assert "中台全局首页" in body
+        assert "当前品牌工作台" not in body
         assert "巡查" not in body
         return self._page("运营一组自动化中台", body)
+
+    def _platform_sidebar(self, active: str) -> str:
+        if not isinstance(active, str) or not active.strip():
+            raise ValueError("active must be non-empty text")
+        items = (
+            ("home", "首页概览", "/"),
+            ("workspace", "品牌工作台", "/workspace"),
+            ("data", "数据入库中心", "/data-foundation"),
+            ("automation", "自动化数据执行", "/automation-runs"),
+            ("archive", "投递资料", "/archive-intake"),
+            ("records", "最近处理记录", "/#recent-jobs"),
+            ("settings", "系统设置", "/admin/ai-settings"),
+        )
+        links = "".join(
+            f"<a class=\"platform-nav-item{' is-active' if key == active else ''}\" href=\"{_e(href)}\"><span>{_e(label)}</span></a>"
+            for key, label, href in items
+        )
+        result = f"""
+        <aside class="platform-sidebar">
+          <div class="platform-brand-mark">
+            <strong>运营一组</strong>
+            <span>AI 自动化中台</span>
+          </div>
+          <nav>{links}</nav>
+        </aside>
+        """
+        assert "数据分析报表" not in result
+        return result
+
+    def _workspace_entry_card(self, workspace_brand: WorkspaceBrand) -> str:
+        if not isinstance(workspace_brand, WorkspaceBrand):
+            raise TypeError("workspace_brand must be WorkspaceBrand")
+        grouped_keys = _workspace_scenario_keys_by_priority(self.scenarios, workspace_brand.key)
+        capability_count = sum(len(keys) for keys in grouped_keys.values())
+        result = f"""
+        <a class="workspace-entry-card" href="/workspace?brand={quote(workspace_brand.key)}">
+          <span class="badge">Workspace</span>
+          <strong>{_e(workspace_brand.label)}</strong>
+          <small>{capability_count} 个已接入能力</small>
+          <em>进入工作台 →</em>
+        </a>
+        """
+        assert MULTI_BRAND_SOURCE_BRAND not in result
+        return result
+
+    def _workspace_overview_page(self, user: UserRecord, workspace_brand_key: str = "") -> str:
+        if not isinstance(user, UserRecord):
+            raise TypeError("user must be UserRecord")
+        current_brand_key = _normalize_workspace_brand_key(workspace_brand_key, self.scenarios)
+        current_brand = _workspace_brand_by_key(current_brand_key, self.scenarios)
+        grouped_keys = _workspace_scenario_keys_by_priority(self.scenarios, current_brand.key)
+        category_cards = "".join(
+            self._workspace_category_entry_card(current_brand.key, priority, title, description, len(grouped_keys[priority]))
+            for priority, title, description in PRIORITY_SECTIONS
+        )
+        capability_count = sum(len(keys) for keys in grouped_keys.values())
+        hidden_count = len(self.scenarios) - sum(
+            len(keys)
+            for option in _workspace_brand_options(self.scenarios)
+            for keys in _workspace_scenario_keys_by_priority(self.scenarios, option.key).values()
+        )
+        body = f"""
+        <div class="platform-layout">
+          {self._platform_sidebar("workspace")}
+          <div class="platform-main">
+            <section class="workspace-topbar">
+              <div>
+                <p class="breadcrumb"><a href="/">首页概览</a> / 品牌工作台 / {_e(current_brand.label)}</p>
+                <h1>{_e(current_brand.label)}</h1>
+                <p>单品牌 Workspace 概览，只展示 P1-P4 分类入口和真实能力数量。</p>
+              </div>
+              <div class="workspace-actions">{self._workspace_brand_selector(current_brand.key)}</div>
+            </section>
+            <section class="workspace-summary-grid">
+              <article><span>品牌状态</span><strong>已接入</strong></article>
+              <article><span>能力数量</span><strong>{capability_count}</strong></article>
+              <article><span>分类数量</span><strong>{len(PRIORITY_SECTIONS)}</strong></article>
+              <article><span>隐藏能力</span><strong>{hidden_count}</strong></article>
+            </section>
+            <section class="platform-section">
+              <div class="section-heading">
+                <h2>能力分类</h2>
+                <p>点击分类卡进入独立分类详情页；此处不展示完整能力明细。</p>
+              </div>
+              <div class="workspace-category-grid">{category_cards}</div>
+            </section>
+          </div>
+        </div>
+        """
+        assert current_brand.label in body
+        assert "全部能力" not in body
+        assert "能力列表" not in body
+        assert "巡查" not in body
+        return self._page(f"{current_brand.label} 工作台", body)
+
+    def _workspace_category_entry_card(self, current_brand_key: str, priority: str, title: str, description: str, capability_count: int) -> str:
+        for field_name, value in (("current_brand_key", current_brand_key), ("priority", priority), ("title", title), ("description", description)):
+            if not isinstance(value, str) or not value.strip():
+                raise ValueError(f"{field_name} must be non-empty text")
+        if not isinstance(capability_count, int) or capability_count < 0:
+            raise ValueError("capability_count must be non-negative int")
+        result = f"""
+        <a class="workspace-category-card" href="/workspace/category?brand={quote(current_brand_key)}&category={quote(priority)}">
+          <span>{_e(priority)}</span>
+          <strong>{_e(priority)} · {_e(title)}</strong>
+          <small>{capability_count} 个能力</small>
+          <em>{_e(description)}</em>
+        </a>
+        """
+        assert priority in result
+        return result
 
     def _workspace_brand_selector(self, current_brand_key: str) -> str:
         if not isinstance(current_brand_key, str) or not current_brand_key.strip():
@@ -2146,7 +2273,7 @@ class IntranetApp:
             for option in options
         )
         result = f"""
-        <form class="brand-workspace-selector" method="get" action="/">
+        <form class="brand-workspace-selector" method="get" action="/workspace">
           <label for="workspace-brand">品牌工作台</label>
           <select id="workspace-brand" name="brand">{option_html}</select>
           <button class="button" type="submit">切换</button>
@@ -2165,35 +2292,11 @@ class IntranetApp:
         for priority, title, _ in PRIORITY_SECTIONS:
             css_class = "workspace-priority-link is-active" if priority == active_priority else "workspace-priority-link"
             links.append(
-                f"<a class=\"{css_class}\" href=\"/priority/{quote(priority)}?brand={quote(current_brand_key)}\">"
+                f"<a class=\"{css_class}\" href=\"/workspace/category?brand={quote(current_brand_key)}&category={quote(priority)}\">"
                 f"<span>{_e(priority)} · {_e(title)}</span><em>{len(grouped_keys[priority])} 个能力</em></a>"
             )
         result = "".join(links)
         assert "P4 · 复查" in result
-        return result
-
-    def _workspace_priority_section(self, current_brand_key: str, priority: str, title: str, description: str, scenario_keys: tuple[str, ...]) -> str:
-        for value_name, value in (("current_brand_key", current_brand_key), ("priority", priority), ("title", title), ("description", description)):
-            if not isinstance(value, str) or not value.strip():
-                raise ValueError(f"{value_name} must be non-empty text")
-        if not isinstance(scenario_keys, tuple):
-            raise TypeError("scenario_keys must be tuple")
-        cards = "".join(self._scenario_card(scenario_key) for scenario_key in scenario_keys)
-        if not cards:
-            cards = "<div class='empty-state'>当前品牌暂无接入能力</div>"
-        result = f"""
-        <section class="workspace-priority-section priority-border-{_e(priority.lower())}">
-          <header>
-            <div>
-              <h3>{_e(priority)} · {_e(title)}</h3>
-              <p>{_e(description)}</p>
-            </div>
-            <a class="button secondary" href="/priority/{quote(priority)}?brand={quote(current_brand_key)}">查看分类</a>
-          </header>
-          <div class="priority-grid">{cards}</div>
-        </section>
-        """
-        assert priority in result
         return result
 
     def _group_development_tree_panel(self) -> str:
@@ -4877,7 +4980,7 @@ class IntranetApp:
         assert result.strip()
         return result
 
-    def _priority_page(self, user: UserRecord, priority: str, workspace_brand_key: str = "") -> str:
+    def _workspace_category_page(self, user: UserRecord, workspace_brand_key: str, priority: str) -> str:
         if not isinstance(user, UserRecord):
             raise TypeError("user must be UserRecord")
         section = next((item for item in PRIORITY_SECTIONS if item[0] == priority), None)
@@ -4891,23 +4994,45 @@ class IntranetApp:
         if not cards:
             cards = "<div class='empty-state'>当前品牌暂无接入能力</div>"
         sibling_links = self._workspace_priority_nav(current_brand.key, priority)
+        capability_count = len(grouped_keys[priority])
         body = f"""
-        <section class="toolbar">
-          <div>
-            <h1>{_e(priority)} · {_e(title)}</h1>
-            <p>{_e(current_brand.label)} · {_e(description)} 当前登录：{_e(user.display_name)}</p>
+        <div class="platform-layout">
+          {self._platform_sidebar("workspace")}
+          <div class="platform-main">
+            <section class="workspace-topbar">
+              <div>
+                <p class="breadcrumb"><a href="/">首页概览</a> / <a href="/workspace?brand={quote(current_brand.key)}">{_e(current_brand.label)}</a> / {_e(priority)} {_e(title)}</p>
+                <h1>{_e(priority)} · {_e(title)}</h1>
+                <p>{_e(current_brand.label)} · {_e(description)}</p>
+              </div>
+              <div class="toolbar-actions">
+                <a class="button secondary" href="/workspace?brand={quote(current_brand.key)}">返回工作台</a>
+              </div>
+            </section>
+            <section class="workspace-summary-grid">
+              <article><span>当前品牌</span><strong>{_e(current_brand.label)}</strong></article>
+              <article><span>当前分类</span><strong>{_e(priority)}</strong></article>
+              <article><span>能力数</span><strong>{capability_count}</strong></article>
+              <article><span>状态</span><strong>{"已接入" if capability_count else "暂无能力"}</strong></article>
+            </section>
+            <section class="workspace-priority-nav">{sibling_links}</section>
+            <section class="platform-section">
+              <div class="section-heading">
+                <h2>{_e(priority)} · {_e(title)} - 能力列表</h2>
+                <p>仅展示当前品牌与当前分类下的能力。</p>
+              </div>
+              <section class="priority-grid">{cards}</section>
+            </section>
           </div>
-          <div class="toolbar-actions">
-            <a class="button secondary" href="/?brand={quote(current_brand.key)}">返回看板</a>
-          </div>
-        </section>
-        <section class="brand-workspace-panel">{self._workspace_brand_selector(current_brand.key)}</section>
-        <section class="workspace-priority-nav">{sibling_links}</section>
-        <section class="priority-grid">{cards}</section>
+        </div>
         """
         assert current_brand.label in body
+        assert priority in body
         assert "巡查" not in body
         return self._page(f"{priority}项目", body)
+
+    def _priority_page(self, user: UserRecord, priority: str, workspace_brand_key: str = "") -> str:
+        return self._workspace_category_page(user, workspace_brand_key, priority)
 
     def _priority_featured_entry(self, priority: str) -> str:
         if not isinstance(priority, str) or not priority.strip():
