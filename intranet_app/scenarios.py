@@ -13,6 +13,18 @@ ANTA_RETAIL_REQUIRED_FIELDS = (
     "黑名单筛选：黑名单明细、美团商品表、京东商品表、门店信息汇总",
 )
 
+ECCO_ACTIVITY_CONFIG_KEY = "ecco_activity_config"
+ECCO_ACTIVITY_CONFIG_REQUIRED_FIELDS = (
+    "参活清单：品牌方邮件附件，含 Material 编码与折扣力度",
+    "WEIS 商品库：后台导出的商品库表（SKU 信息 sheet 含颜色字段）",
+)
+
+BOSCH_SMS_REVIEW_KEY = "bosch_sms_review"
+BOSCH_SMS_REVIEW_REQUIRED_FIELDS = (
+    "短彩信发送规划表：品牌、发送日期、活动名称、渠道、发送量等",
+    "短彩信执行结果：到达、点击、订单与成交数据",
+)
+
 
 def build_scenarios(template_root: Path) -> dict[str, Scenario]:
     if not isinstance(template_root, Path):
@@ -48,6 +60,26 @@ def build_scenarios(template_root: Path) -> dict[str, Scenario]:
             required_fields=ANTA_RETAIL_REQUIRED_FIELDS,
             template_path=template_root / "03_config_automation_materials" / "03-1_anta_instant_retail",
         ),
+        ECCO_ACTIVITY_CONFIG_KEY: Scenario(
+            key=ECCO_ACTIVITY_CONFIG_KEY,
+            name="ECCO活动配置",
+            priority="P3",
+            brand="ECCO",
+            business_type="配置自动化",
+            description="承接ECCO满折/满减活动配置提效：参活清单SPU拆分、WEIS商品库匹配、按折扣生成导入包并复核。",
+            required_fields=ECCO_ACTIVITY_CONFIG_REQUIRED_FIELDS,
+            template_path=template_root / "03_config_automation_materials" / "03-2_ecco_activity_config",
+        ),
+        BOSCH_SMS_REVIEW_KEY: Scenario(
+            key=BOSCH_SMS_REVIEW_KEY,
+            name="博世/西门子短彩信规划复核",
+            priority="P4",
+            brand="博世/西门子",
+            business_type="规划复核",
+            description="复核博世/西门子短彩信发送规划与执行结果，沉淀规划合规、指标异常与复盘口径。",
+            required_fields=BOSCH_SMS_REVIEW_REQUIRED_FIELDS,
+            template_path=template_root / "01_data_processing" / "01-1_sms_mms_processing" / "bosch",
+        ),
         ai_selection.MODULE_KEY: Scenario(
             key=ai_selection.MODULE_KEY,
             name="AI选品辅助",
@@ -69,5 +101,5 @@ def build_scenarios(template_root: Path) -> dict[str, Scenario]:
             template_path=template_root / "02_brand_content_materials" / "required_materials" / "06_copywriting_tasks" / "copy_content_template_anta_kids_example.xlsx",
         ),
     }
-    assert len(scenarios) == 5
+    assert len(scenarios) == 7
     return scenarios
