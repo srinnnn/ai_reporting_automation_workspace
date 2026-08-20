@@ -2114,9 +2114,9 @@ class IntranetApp:
               <a class="button secondary" href="/logout">退出</a>
             </section>
             <section class="platform-hero">
-              <div>
+              <div class="platform-hero-copy">
                 <span class="eyebrow">Middle Platform</span>
-                <h2>运营一组自动化中台</h2>
+                <h2>运营一组 AI 自动化中台</h2>
                 <p>统一进入品牌工作台、数据入库、自动化执行和资料投递；首页只展示全局概览和品牌入口。</p>
               </div>
               <div class="button-row">
@@ -2124,6 +2124,7 @@ class IntranetApp:
                 <a class="button secondary" href="/automation-runs">自动化数据执行</a>
                 <a class="button secondary" href="/archive-intake">投递资料</a>
               </div>
+              <span class="platform-hero-accent" aria-hidden="true"></span>
             </section>
             <section class="platform-kpi-grid">{metric_cards}</section>
             <section class="platform-section">
@@ -2211,11 +2212,17 @@ class IntranetApp:
         <div class="platform-layout">
           {self._platform_sidebar("workspace")}
           <div class="platform-main">
-            <section class="workspace-topbar">
-              <div>
-                <p class="breadcrumb"><a href="/">首页概览</a> / 品牌工作台 / {_e(current_brand.label)}</p>
-                <h1>{_e(current_brand.label)}</h1>
-                <p>单品牌 Workspace 概览，只展示 P1-P4 分类入口和真实能力数量。</p>
+            <section class="workspace-topbar brand-workspace-header">
+              <div class="brand-identity">
+                <span class="brand-monogram">{_e(current_brand.key)}</span>
+                <div>
+                  <p class="breadcrumb"><a href="/">首页概览</a> / 品牌工作台 / {_e(current_brand.label)}</p>
+                  <div class="brand-heading-row">
+                    <h1>{_e(current_brand.label)}</h1>
+                    <span class="status-pill">运行中</span>
+                  </div>
+                  <p class="brand-subtitle">Brand Workspace</p>
+                </div>
               </div>
               <div class="workspace-actions">{self._workspace_brand_selector(current_brand.key)}</div>
             </section>
@@ -2252,7 +2259,7 @@ class IntranetApp:
           <span>{_e(priority)}</span>
           <strong>{_e(priority)} · {_e(title)}</strong>
           <small>{capability_count} 个能力</small>
-          <em>{_e(description)}</em>
+          <em>进入分类 →</em>
         </a>
         """
         assert priority in result
@@ -2271,8 +2278,10 @@ class IntranetApp:
         result = f"""
         <form class="brand-workspace-selector" method="get" action="/workspace">
           <label for="workspace-brand">品牌工作台</label>
-          <select id="workspace-brand" name="brand">{option_html}</select>
-          <button class="button" type="submit">切换</button>
+          <div class="brand-switcher-control">
+            <select id="workspace-brand" name="brand">{option_html}</select>
+            <button class="brand-switcher-submit" type="submit">切换</button>
+          </div>
         </form>
         """
         assert MULTI_BRAND_SOURCE_BRAND not in result
@@ -4995,29 +5004,25 @@ class IntranetApp:
         <div class="platform-layout">
           {self._platform_sidebar("workspace")}
           <div class="platform-main">
-            <section class="workspace-topbar">
+            <section class="workspace-topbar category-detail-topbar">
               <div>
                 <p class="breadcrumb"><a href="/">首页概览</a> / <a href="/workspace?brand={quote(current_brand.key)}">{_e(current_brand.label)}</a> / {_e(priority)} {_e(title)}</p>
+                <p class="category-context">{_e(current_brand.label)} / {_e(priority)}</p>
                 <h1>{_e(priority)} · {_e(title)}</h1>
-                <p>{_e(current_brand.label)} · {_e(description)}</p>
+                <p class="category-status-line">{capability_count} 个能力 · {"已接入" if capability_count else "暂无能力"}</p>
+                <p>{_e(description)}</p>
               </div>
               <div class="toolbar-actions">
                 <a class="button secondary" href="/workspace?brand={quote(current_brand.key)}">返回工作台</a>
               </div>
             </section>
-            <section class="workspace-summary-grid">
-              <article><span>当前品牌</span><strong>{_e(current_brand.label)}</strong></article>
-              <article><span>当前分类</span><strong>{_e(priority)}</strong></article>
-              <article><span>能力数</span><strong>{capability_count}</strong></article>
-              <article><span>状态</span><strong>{"已接入" if capability_count else "暂无能力"}</strong></article>
-            </section>
             <section class="workspace-priority-nav">{sibling_links}</section>
-            <section class="platform-section">
+            <section class="platform-section workspace-capability-section">
               <div class="section-heading">
                 <h2>{_e(priority)} · {_e(title)} - 能力列表</h2>
                 <p>仅展示当前品牌与当前分类下的能力。</p>
               </div>
-              <section class="priority-grid">{cards}</section>
+              <section class="priority-grid workspace-capability-list">{cards}</section>
             </section>
           </div>
         </div>
@@ -5405,9 +5410,9 @@ class IntranetApp:
     def _scenario_card(self, scenario_key: str) -> str:
         scenario = self.scenarios[scenario_key]
         href = self._scenario_href(scenario.key)
-        button_text = "打开项目" if scenario.key in (ANTA_RETAIL_KEY, anta_reporting.MODULE_KEY) else "进入处理"
+        button_text = "进入项目 →"
         return f"""
-        <article class="card">
+        <article class="card capability-card">
           <div class="badge">{_e(scenario.priority)}</div>
           <h2>{_e(scenario.name)}</h2>
           <p>{_e(scenario.description)}</p>
