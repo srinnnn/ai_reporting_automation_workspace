@@ -90,6 +90,8 @@ PRIORITY_SECTIONS = (
 )
 WORKSPACE_BRANDS = (
     WorkspaceBrand("ANTA", "ANTA 安踏", ("安踏儿童", "安踏即时零售")),
+    WorkspaceBrand("ECCO", "ECCO", ("ECCO",)),
+    WorkspaceBrand("BSH", "BSH 博西", ("博西", "博世/西门子")),
 )
 MULTI_BRAND_SOURCE_BRAND = "多品牌"
 PLATFORM_SECTIONS = (
