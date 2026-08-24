@@ -86,3 +86,27 @@ Do not add or commit files from:
 - Keep generated outputs out of Git.
 - Never store API keys, cookies, passwords, or platform account credentials in code, Excel, CSV, or docs.
 - If a report or AI output requires missing foundation data, raise a clear validation error instead of fabricating data.
+
+## Middle Platform Design Baseline V1.0
+
+The Middle Platform approved HTML and approved screenshot are the visual source of truth:
+
+- `docs/ui-reference/homepage-approved.html`
+- `docs/ui-reference/homepage-approved.png`
+- `docs/DESIGN_BASELINE.md`
+
+Hard rules for UI work:
+
+1. Approved HTML + Screenshot are the Visual Source of Truth.
+2. Do not redesign approved layouts.
+3. Use approved design tokens from `design-system/tokens.css`.
+4. Reuse the shared UI design system in `docs/UI_DESIGN_SYSTEM.md`.
+5. Do not create one-off UI systems or brand-specific component variants.
+6. Any intentional major visual change requires Product Owner approval.
+7. Visual regression must pass before merge after a Playwright runtime baseline exists. Current Design Baseline V1.0 status is `VISUAL_REGRESSION = PARTIAL` and `RUNTIME_VISUAL_BASELINE = PENDING_REACT_MIGRATION`.
+8. Current style is `Premium Monochrome Enterprise SaaS`.
+9. Black, white, and gray come first.
+10. Low-saturation accents are allowed only for selected state, hover accent, status, small icons, charts, brand accent, and small interactive highlights.
+11. Motion must be subtle, non-blocking, and compatible with `prefers-reduced-motion`.
+
+Do not replace the light sidebar with a dark sidebar, introduce a blue-dominant theme, reorder homepage modules, remove the brand banner, change Brand Workspace selector semantics, or overwrite Baseline V1.0 without the formal design change process.
