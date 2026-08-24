@@ -1,0 +1,149 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    env:
+      PYTHONPATH: .
+      APP_ENV: testing
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements-dev.txt
+      - name: Run unit tests
+        run: python -m unittest discover -s tests -p "test_*.py"
+      - name: Compile Python files
+        run: git ls-files '*.py' | xargs python -m py_compile
+
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20.19.0"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm run test
+      - run: npm run build
+      - run: npm audit --audit-level=moderate
+
+  docker:
+    runs-on: ubuntu-latest
+    needs: [backend, frontend]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build image
+        run: docker build --build-arg APP_COMMIT_SHA=${{ github.sha }} --build-arg APP_BUILD_TIME=$(date -u +%Y-%m-%dT%H:%M:%SZ) -t middle-platform:${{ github.sha }} .
+      - name: Smoke container
+        run: |
+          docker run -d --name middle-platform-smoke -p 8785:8785 middle-platform:${{ github.sha }}
+          for i in $(seq 1 20); do
+            if curl -fsS http://127.0.0.1:8785/api/v1/health; then break; fi
+            sleep 2
+          done
+          curl -fsS http://127.0.0.1:8785/
+          curl -fsS http://127.0.0.1:8785/api/v1/ready
+          curl -fsS http://127.0.0.1:8785/api/v1/version
+          docker rm -f middle-platform-smoke
+
+  e2e-visual:
+    runs-on: ubuntu-latest
+    needs: [backend, frontend]
+    env:
+      PYTHONPATH: .
+      APP_ENV: production
+      DEMO_MODE: "false"
+      APP_COMMIT_SHA: ${{ github.sha }}
+      APP_BUILD_TIME: ci
+      RUNTIME_DIR: ${{ github.workspace }}/runtime
+      SQLITE_PATH: ${{ github.workspace }}/runtime/intranet.sqlite3
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20.19.0"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements-prod.txt
+      - name: Build React production dist
+        working-directory: frontend
+        run: |
+          npm ci
+          npm run build
+          npx playwright install --with-deps chromium
+      - name: Start FastAPI production runtime
+        run: |
+          python -m uvicorn backend.main:app --host 127.0.0.1 --port 8785 > runtime-uvicorn.out.log 2> runtime-uvicorn.err.log &
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:8785/api/v1/ready; then exit 0; fi
+            sleep 2
+          done
+          exit 1
+      - name: Run Playwright e2e and visual capture
+        working-directory: frontend
+        run: npm run e2e
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: runtime-visual-homepage
+          path: tests/visual/runtime/homepage.png
+
+  secret-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Added-line secret scan
+        shell: python
+        run: |
+          import re
+          import subprocess
+          import sys
+
+          subprocess.run(["git", "fetch", "origin", "main:refs/remotes/origin/main"], check=True)
+          diff = subprocess.run(
+              ["git", "diff", "--unified=0", "origin/main...HEAD"],
+              check=True,
+              text=True,
+              capture_output=True,
+          ).stdout
+          added_lines = [
+              line[1:]
+              for line in diff.splitlines()
+              if line.startswith("+") and not line.startswith("+++")
+          ]
+          patterns = [
+              "A" + r"KIA[0-9A-Z]{16}",
+              "g" + r"hp_[A-Za-z0-9_]{30,}",
+              "github" + r"_pat_[A-Za-z0-9_]+",
+              "s" + r"k-[A-Za-z0-9]{20,}",
+              "DASH" + r"SCOPE_API_KEY=.+",
+          ]
+          compiled = re.compile("|".join(patterns))
+          matches = [line for line in added_lines if compiled.search(line)]
+          if matches:
+              print("Potential secret detected in added lines.")
+              sys.exit(1)

@@ -3,18 +3,30 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      args:
+        APP_COMMIT_SHA: ${APP_COMMIT_SHA:-local}
+        APP_BUILD_TIME: ${APP_BUILD_TIME:-local}
+        APP_VERSION: ${APP_VERSION:-3.0.0}
     image: ai-reporting-automation:local
-    env_file:
-      - .env
     environment:
+      APP_ENV: production
       INTRANET_HOST: 0.0.0.0
       INTRANET_PORT: 8785
-      PYTHONPATH: /app:/app/src
-      APP_ENV: development
+      PYTHONPATH: /app
       DATABASE_BACKEND: sqlite
-      RUNTIME_DIR: /app/intranet_app/runtime
+      RUNTIME_DIR: /app/runtime
+      SQLITE_PATH: /app/runtime/intranet.sqlite3
+      DEMO_MODE: ${DEMO_MODE:-false}
     ports:
       - "8785:8785"
     volumes:
-      - ./intranet_app/runtime:/app/intranet_app/runtime
+      - middle-platform-runtime:/app/runtime
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8785/api/v1/health', timeout=3).read()"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
     restart: unless-stopped
+
+volumes:
+  middle-platform-runtime:

@@ -114,12 +114,12 @@ Future implementation must use the Product Contract / Registry for business sema
 
 Current status:
 
-- `VISUAL_REGRESSION = PARTIAL`
-- `RUNTIME_VISUAL_BASELINE = PENDING_REACT_MIGRATION`
+- `VISUAL_REGRESSION = READY`
+- `RUNTIME_VISUAL_BASELINE = READY`
 - `docs/ui-reference/homepage-approved.png` is the Product Design Source.
-- `tests/visual/baseline/homepage.png` is `SEEDED REFERENCE ONLY`.
+- `tests/visual/runtime/homepage.png` is the Playwright runtime screenshot.
 
-The seeded screenshot is not an operational Playwright regression gate. After React/Vite runtime migration, future key UI changes must compare Playwright runtime screenshots from `http://127.0.0.1:8785/` with confirmed runtime baselines. If an unapproved major visual change exists:
+Future key UI changes must compare Playwright runtime screenshots from `http://127.0.0.1:8785/` with confirmed runtime baselines. If an unapproved major visual change exists:
 
 - `VISUAL_REGRESSION_GATE = FAIL`
 - `MERGE_GATE = BLOCKED`

@@ -1,0 +1,24 @@
+name: Rollback Windows Native
+
+on:
+  workflow_dispatch:
+    inputs:
+      target_sha:
+        description: "Existing release SHA. Leave empty for previous_successful_sha."
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  rollback:
+    runs-on: [self-hosted, windows, x64, middle-platform-prod-native]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Roll back to release
+        shell: powershell
+        run: |
+          .\ops\windows-native\rollback.ps1 -TargetSha "${{ inputs.target_sha }}"

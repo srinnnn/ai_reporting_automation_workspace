@@ -1,0 +1,39 @@
+name: GHCR Future Image Validation
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  build-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build future GHCR image locally on runner
+        run: |
+          IMAGE="ghcr.io/${{ github.repository_owner }}/middle-platform"
+          docker build \
+            --build-arg APP_COMMIT_SHA=${{ github.sha }} \
+            --build-arg APP_BUILD_TIME=$(date -u +%Y-%m-%dT%H:%M:%SZ) \
+            -t "$IMAGE:sha-${{ github.sha }}" \
+            -t "$IMAGE:latest" \
+            .
+      - name: Smoke future GHCR image
+        run: |
+          IMAGE="ghcr.io/${{ github.repository_owner }}/middle-platform"
+          docker run -d --name middle-platform-smoke -p 8785:8785 "$IMAGE:sha-${{ github.sha }}"
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:8785/api/v1/health; then break; fi
+            sleep 2
+          done
+          curl -fsS http://127.0.0.1:8785/api/v1/ready
+          curl -fsS http://127.0.0.1:8785/api/v1/version | grep "${{ github.sha }}"
+          docker rm -f middle-platform-smoke
+      - name: Record GHCR publication gate
+        run: |
+          echo "GHCR publication is FUTURE_READY."
+          echo "Package-write push remains disabled until Product Owner approves external registry publication."

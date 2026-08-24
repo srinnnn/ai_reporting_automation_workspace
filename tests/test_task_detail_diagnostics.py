@@ -31,12 +31,11 @@ class TaskDetailDiagnosticsTests(unittest.TestCase):
 
         page = app._task_detail_page(_user(), "/tasks/1")
 
-        self.assertIn("Result Asset", page)
-        self.assertIn("download available", page)
-        self.assertIn("true", page)
+        self.assertIn("结果文件", page)
+        self.assertIn("可下载", page)
+        self.assertIn("/api/tasks/1/download", page)
         self.assertIn("daily.csv", page)
-        self.assertIn("task-results/1/daily.csv", page)
-        self.assertIn("size", page)
+        self.assertIn("下载结果 CSV", page)
 
     def test_failed_task_detail_shows_error_diagnostics(self) -> None:
         app = object.__new__(IntranetApp)
@@ -50,8 +49,8 @@ class TaskDetailDiagnosticsTests(unittest.TestCase):
         self.assertIn("foundation data missing", page)
         self.assertIn("2026-07-31T09:55:00+08:00", page)
         self.assertIn("2026-07-31T10:01:00+08:00", page)
-        self.assertIn("download available", page)
-        self.assertIn("false", page)
+        self.assertIn("任务失败，无结果文件", page)
+        self.assertIn("结果文件", page)
 
     def test_ai_task_detail_flow_uses_ai_executor_and_service(self) -> None:
         app = object.__new__(IntranetApp)
