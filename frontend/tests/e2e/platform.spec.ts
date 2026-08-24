@@ -3,6 +3,7 @@ import { expect, test } from "@playwright/test";
 import { readFileSync } from "fs";
 
 type HomepageStructureBaseline = {
+  moduleOrder: string[];
   filters: string[];
   brandWorkspace: {
     selectorCount: number;
@@ -11,6 +12,9 @@ type HomepageStructureBaseline = {
     defaultBrand: string;
   };
   categoryEntries: string[];
+  quickNavigation: string[];
+  prohibitedPageText: string[];
+  prohibitedSelectors: string[];
 };
 
 const HOMEPAGE_BASELINE = JSON.parse(
@@ -39,17 +43,35 @@ test("homepage structural visual regression matches approved baseline contract",
   const baseline = HOMEPAGE_BASELINE;
   await page.goto("/");
 
+  await expect(page.locator(".sidebar")).toBeVisible();
+  await expect(page.locator(".topbar")).toBeVisible();
   await expect(page.locator(".brand-card")).toHaveCount(baseline.brandWorkspace.flatBrandCardCount);
   await expect(page.getByRole("combobox", { name: "品牌" })).toHaveCount(baseline.brandWorkspace.selectorCount);
   await expect(page.getByTestId("selected-brand-banner")).toHaveCount(baseline.brandWorkspace.selectedBannerCount);
   await expect(page.getByTestId("selected-brand-banner")).toContainText(baseline.brandWorkspace.defaultBrand);
   await expect(page.getByText("待接入")).toHaveCount(0);
+  await expect(page.getByTestId("selected-brand-kpi")).toHaveCount(1);
+
+  const moduleOrder = await page.locator("[data-homepage-module='true']").evaluateAll((nodes) =>
+    nodes.map((node) => node.getAttribute("data-module")),
+  );
+  expect(moduleOrder).toEqual(baseline.moduleOrder);
 
   const filterLabels = await page.getByTestId("global-filters").locator("button").allInnerTexts();
   expect(filterLabels.map((label) => label.trim())).toEqual(baseline.filters);
 
   const categoryLabels = await page.locator(".category-card strong").allInnerTexts();
   expect(categoryLabels.map((label) => label.trim())).toEqual(baseline.categoryEntries);
+
+  const quickNavigationLabels = await page.getByTestId("quick-navigation").locator("strong").allInnerTexts();
+  expect(quickNavigationLabels.map((label) => label.trim())).toEqual(baseline.quickNavigation);
+
+  for (const text of baseline.prohibitedPageText) {
+    await expect(page.locator(".page")).not.toContainText(text);
+  }
+  for (const selector of baseline.prohibitedSelectors) {
+    await expect(page.locator(selector)).toHaveCount(0);
+  }
 });
 
 test("brand selector banner enters Brand Workspace", async ({ page }) => {
@@ -76,7 +98,8 @@ test("brand selection scopes ANTA, BSH, and ECCO homepage context", async ({ pag
   await expect(page.getByTestId("project-anta_retail")).toBeVisible();
   await expect(page.getByTestId("project-bosch_sms")).not.toBeVisible();
   await expect(page.getByTestId("project-ecco_activity_config")).not.toBeVisible();
-  await expect(page.getByText("当前品牌暂无反馈记录")).toBeVisible();
+  await expect(page.getByTestId("developed-feedback")).toContainText("ANTA 安踏 / 0 条");
+  await expect(page.getByTestId("developed-feedback")).toContainText("当前品牌暂无反馈记录");
 
   await page.getByRole("combobox", { name: "品牌" }).selectOption("BSH");
   await expect(page.getByTestId("selected-brand-banner")).toContainText("BSH 博西");
@@ -90,6 +113,8 @@ test("brand selection scopes ANTA, BSH, and ECCO homepage context", async ({ pag
   await expect(page.getByTestId("project-bosch_sms_review")).toBeVisible();
   await expect(page.getByTestId("project-anta_reporting")).not.toBeVisible();
   await expect(page.getByTestId("project-ecco_activity_config")).not.toBeVisible();
+  await expect(page.getByTestId("developed-feedback")).toContainText("BSH 博西 / 0 条");
+  await expect(page.getByTestId("developed-feedback")).toContainText("当前品牌暂无反馈记录");
 
   await page.getByRole("combobox", { name: "品牌" }).selectOption("ECCO");
   await expect(page.getByTestId("selected-brand-banner")).toContainText("ECCO");
@@ -102,6 +127,8 @@ test("brand selection scopes ANTA, BSH, and ECCO homepage context", async ({ pag
   await expect(page.getByTestId("project-ecco_activity_config")).toBeVisible();
   await expect(page.getByTestId("project-anta_reporting")).not.toBeVisible();
   await expect(page.getByTestId("project-bosch_sms")).not.toBeVisible();
+  await expect(page.getByTestId("developed-feedback")).toContainText("ECCO / 0 条");
+  await expect(page.getByTestId("developed-feedback")).toContainText("当前品牌暂无反馈记录");
 });
 
 test("P1-P4 category navigation keeps selected brand and prevents cross-category leakage", async ({ page }) => {

@@ -33,7 +33,7 @@ export function HomePage() {
 
   return (
     <div className="page">
-      <section className="page-header">
+      <section className="page-header" data-homepage-module="true" data-module="page-header">
         <div>
           <p className="eyebrow">品牌工作台 / Brand Workspace Overview</p>
           <h1>中台全局首页</h1>
@@ -45,7 +45,7 @@ export function HomePage() {
         </div>
       </section>
 
-      <section className="filter-bar" data-testid="global-filters">
+      <section className="filter-bar" data-testid="global-filters" data-homepage-module="true" data-module="global-filters">
         <span><IconFilter size={16} /> 全局筛选</span>
         <button>项目</button>
         <button>品牌</button>
@@ -68,7 +68,7 @@ export function HomePage() {
       <FeedbackSummary brand={selectedBrand} />
       <QuickNav />
 
-      <footer>Middle Platform Design Baseline V1.0</footer>
+      <footer data-homepage-module="true" data-module="footer">Middle Platform Design Baseline V1.0</footer>
     </div>
   );
 }
@@ -87,7 +87,7 @@ function BrandSelector({
   onSelect: (brandKey: string) => void;
 }) {
   return (
-    <section className="panel brand-workspace-panel" data-testid="brand-workspace-entry">
+    <section className="panel brand-workspace-panel" data-testid="brand-workspace-entry" data-homepage-module="true" data-module="brand-workspace">
       <div className="section-title">
         <h2>品牌 Workspace 入口</h2>
         <span>{brands.length || 0} 个品牌</span>
@@ -137,7 +137,7 @@ function KpiStrip({ brand, projects }: { brand?: BrandSummary; projects: Project
   const activeCategoryCount = brand?.active_category_count ?? categories.filter((category) => category.capability_count > 0).length;
   const capabilityCount = categories.reduce((total, category) => total + category.capability_count, 0);
   return (
-    <section className="kpi-grid">
+    <section className="kpi-grid" data-testid="selected-brand-kpi" data-homepage-module="true" data-module="selected-brand-kpi">
       <article className="kpi-card accent-slate" data-testid="kpi-active-categories"><IconDatabase size={18} /><span>已接分类</span><strong>{activeCategoryCount}</strong><em>当前品牌</em></article>
       <article className="kpi-card accent-sage" data-testid="kpi-connected-projects"><IconFlag size={18} /><span>已接项目</span><strong>{projects.length}</strong><em>当前品牌</em></article>
       <article className="kpi-card accent-lavender" data-testid="kpi-capabilities"><IconShieldCheck size={18} /><span>可见能力</span><strong>{capabilityCount}</strong><em>Workspace 内可见</em></article>
@@ -149,7 +149,7 @@ function KpiStrip({ brand, projects }: { brand?: BrandSummary; projects: Project
 function CategoryEntry({ brand }: { brand?: BrandSummary }) {
   const categories = brand?.categories ?? emptyCategories.map((item) => ({ ...item, capability_count: 0, status: "NOT_CONNECTED", capabilities: [] }));
   return (
-    <section className="panel category-panel">
+    <section className="panel category-panel" data-testid="p1-p4-category-grid" data-homepage-module="true" data-module="p1-p4">
       <div className="section-title">
         <h2>P1-P4 分级入口</h2>
         <span>仅展示入口，不展开全部能力</span>
@@ -175,7 +175,7 @@ function CategoryEntry({ brand }: { brand?: BrandSummary }) {
 
 function ProjectList({ brand, projects }: { brand?: BrandSummary; projects: ProjectSummary[] }) {
   return (
-    <section className="panel project-panel">
+    <section className="panel project-panel" data-testid="connected-projects" data-homepage-module="true" data-module="connected-projects">
       <div className="section-title">
         <h2>已接项目</h2>
         <span>{brand?.name ?? "暂无品牌"} / {projects.length} 项</span>
@@ -197,7 +197,7 @@ function ProjectList({ brand, projects }: { brand?: BrandSummary; projects: Proj
 
 function FeedbackSummary({ brand }: { brand?: BrandSummary }) {
   return (
-    <section className="panel feedback-panel">
+    <section className="panel feedback-panel" data-testid="developed-feedback" data-homepage-module="true" data-module="developed-feedback">
       <div className="section-title"><h2>已开发反馈汇总</h2><span>{brand?.name ?? "暂无品牌"} / 0 条</span></div>
       <div className="feedback-empty">
         <strong>当前品牌暂无反馈记录</strong>
@@ -215,7 +215,7 @@ function QuickNav() {
     { to: "/schedule", title: "开发排期", description: "查看项目开发状态", icon: IconTimeline, accent: "accent-amber" },
   ];
   return (
-    <section className="quick-nav">
+    <section className="quick-nav" data-testid="quick-navigation" data-homepage-module="true" data-module="quick-navigation">
       {actions.map((action) => {
         const Icon = action.icon;
         return (

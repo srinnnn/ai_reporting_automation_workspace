@@ -1,4 +1,15 @@
 {
+  "moduleOrder": [
+    "page-header",
+    "global-filters",
+    "brand-workspace",
+    "selected-brand-kpi",
+    "p1-p4",
+    "connected-projects",
+    "developed-feedback",
+    "quick-navigation",
+    "footer"
+  ],
   "filters": ["项目", "品牌", "优先级", "状态"],
   "brandWorkspace": {
     "selectorCount": 1,
@@ -6,5 +17,22 @@
     "flatBrandCardCount": 0,
     "defaultBrand": "ANTA 安踏"
   },
-  "categoryEntries": ["P1", "P2", "P3", "P4"]
+  "categoryEntries": ["P1", "P2", "P3", "P4"],
+  "quickNavigation": ["数据入库", "自动化执行", "查看报表", "开发排期"],
+  "prohibitedPageText": [
+    "AI 驱动 · 高效运营",
+    "可提效项目",
+    "资料索引记录",
+    "数据字典字段",
+    "最近处理记录",
+    "当前分级",
+    "隐藏能力"
+  ],
+  "prohibitedSelectors": [
+    ".hero-section",
+    ".homepage-hero",
+    ".global-project-stats",
+    ".recent-processing-table",
+    ".right-context-rail"
+  ]
 }
