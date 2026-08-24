@@ -30,11 +30,15 @@ node_modules/
 dist/
 build/
 coverage/
+test-results/
+**/test-results/
 .cache/
 
 # Runtime/generated local state
 runtime/
 **/runtime/
+!tests/visual/runtime/
+!tests/visual/runtime/**
 intranet_app/runtime/
 outputs/
 uploads/

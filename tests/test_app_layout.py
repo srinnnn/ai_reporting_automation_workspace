@@ -5,7 +5,15 @@ import unittest
 from decimal import Decimal
 from pathlib import Path
 
-from intranet_app.app import CompletedFeedbackItem, GROUP_PROJECT_TREE_ITEMS, IntranetApp, _parse_duration_hours
+from intranet_app.app import (
+    CompletedFeedbackItem,
+    EfficiencyMappingBrand,
+    EfficiencyMappingTask,
+    GROUP_PROJECT_TREE_ITEMS,
+    IntranetApp,
+    WorkItemCoverage,
+    _parse_duration_hours,
+)
 from intranet_app.auth import PasswordHash
 from intranet_app.config import AppConfig
 from intranet_app.domain import ProcessingResult
@@ -19,6 +27,7 @@ class AppLayoutTests(unittest.TestCase):
             (root / "materials").mkdir()
             app = IntranetApp(_config(root))
             app.storage = _EmptyStorage()
+            _attach_layout_fixtures(app)
             user = UserRecord(1, "admin", "系统管理员", "管理员", PasswordHash("salt", "digest"))
             cases = {
                 "ANTA": 2,
@@ -45,6 +54,7 @@ class AppLayoutTests(unittest.TestCase):
             app.storage = _EmptyStorage()
             user = UserRecord(1, "admin", "系统管理员", "管理员", PasswordHash("salt", "digest"))
 
+            _attach_layout_fixtures(app)
             dashboard = app._dashboard(user)
 
             self.assertIn("中台全局首页", dashboard)
@@ -225,6 +235,7 @@ class DashboardTreeCalculationTests(unittest.TestCase):
             root = Path(tmp_dir)
             (root / "materials").mkdir()
             app = IntranetApp(_config(root))
+            _attach_layout_fixtures(app)
             groups = app._project_platform_groups()
 
         platforms = {group.platform for group in groups}
@@ -258,6 +269,7 @@ class DashboardTreeCalculationTests(unittest.TestCase):
             (root / "materials").mkdir()
             app = IntranetApp(_config(root))
             app.storage = _StorageWithEfficiencyOverride()
+            _attach_layout_fixtures(app)
 
             items = app._high_efficiency_mapping_items()
             monthly_report = next(item for item in items if item.task_name == "月报（月报表整合/规划项）")
@@ -318,6 +330,54 @@ class _StorageWithEfficiencyOverride(_EmptyStorage):
                 updated_at="2026-07-28 12:00:00",
             )
         }
+
+
+def _attach_layout_fixtures(app: IntranetApp) -> None:
+    if not isinstance(app, IntranetApp):
+        raise TypeError("app must be IntranetApp")
+    app._high_efficiency_mapping_items = lambda: _fixture_efficiency_mapping_items(app)
+    app._work_item_coverage_map = _fixture_work_item_coverage_map
+
+
+def _fixture_efficiency_mapping_items(app: IntranetApp) -> tuple[EfficiencyMappingTask, ...]:
+    if not isinstance(app, IntranetApp):
+        raise TypeError("app must be IntranetApp")
+    notes = app.storage.list_efficiency_mapping_notes()
+    priority_types = {"P1": "A", "P2": "B", "P3": "C", "P4": "D"}
+    tasks: list[EfficiencyMappingTask] = []
+    for item in app._developable_group_items():
+        brands = tuple(brand for brand in app._developed_projects_for_work_item(item) if brand != "待补充") or ("全组多品牌",)
+        brand_items = tuple(
+            EfficiencyMappingBrand(
+                task_name=item.project,
+                brand_name=brand,
+                business_owners=(),
+                is_improved=app._resolved_efficiency_improved_state(item.project, brand, notes),
+                note=notes.get((item.project, app._normalize_brand(brand))),
+            )
+            for brand in brands
+        )
+        tasks.append(
+            EfficiencyMappingTask(
+                priority=item.priority,
+                replacement_type=priority_types[item.priority],
+                task_name=item.project,
+                monthly_hours=item.original_hours,
+                replacement_reason="规则明确、频率高、模板稳定，适合优先自动化提效。",
+                brands=brand_items,
+            )
+        )
+    result = tuple(sorted(tasks, key=lambda task: task.monthly_hours, reverse=True))
+    assert result
+    return result
+
+
+def _fixture_work_item_coverage_map() -> dict[str, WorkItemCoverage]:
+    channels = ("CRM", "京东", "小程序", "企微/社群", "飞猪", "经销")
+    brands = ("安踏", "Nes", "Vans", "CROCS", "CK", "Armani", "Tommy")
+    result = {item.project: WorkItemCoverage(channels=channels, brands=brands) for item in GROUP_PROJECT_TREE_ITEMS}
+    assert len(result) == len(GROUP_PROJECT_TREE_ITEMS)
+    return result
 
 
 def _config(root: Path) -> AppConfig:

@@ -1,0 +1,132 @@
+from __future__ import annotations
+
+from datetime import UTC, datetime
+import os
+from pathlib import Path
+import sqlite3
+
+from fastapi import FastAPI, HTTPException
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
+
+from backend.core.config import load_core_config
+from backend.services.platform_service import PlatformService
+
+
+APP_VERSION = "3.0.0"
+ROOT_DIR = Path(__file__).resolve().parents[1]
+FRONTEND_DIST = ROOT_DIR / "frontend" / "dist"
+
+
+def create_app() -> FastAPI:
+    config = load_core_config(root_dir=ROOT_DIR)
+    demo_mode = os.environ.get("DEMO_MODE", "false").strip().lower() in {"1", "true", "yes", "on"}
+    service = PlatformService(template_root=config.files.template_root, demo_mode=demo_mode)
+    app = FastAPI(title="Middle Platform API", version=APP_VERSION)
+
+    @app.get("/api/v1/health")
+    def health() -> dict[str, str]:
+        return {"status": "ok"}
+
+    @app.get("/api/v1/ready")
+    def ready() -> dict[str, object]:
+        runtime_ready = _ensure_directory(config.files.runtime_dir)
+        database_ready = _check_sqlite(config.database.sqlite_path)
+        frontend_ready = FRONTEND_DIST.joinpath("index.html").exists() if config.environment == "production" else True
+        status = "ok" if runtime_ready and database_ready and frontend_ready else "error"
+        payload = {
+            "status": status,
+            "runtime_directory": runtime_ready,
+            "database": database_ready,
+            "frontend_dist": frontend_ready,
+            "environment": config.environment,
+        }
+        if status != "ok":
+            raise HTTPException(status_code=503, detail=payload)
+        return payload
+
+    @app.get("/api/v1/version")
+    def version() -> dict[str, str]:
+        return {
+            "version": os.environ.get("APP_VERSION", APP_VERSION),
+            "commit_sha": os.environ.get("APP_COMMIT_SHA", "local"),
+            "build_time": os.environ.get("APP_BUILD_TIME", datetime.now(UTC).isoformat()),
+            "environment": config.environment,
+        }
+
+    @app.get("/api/v1/dashboard")
+    def dashboard() -> dict[str, object]:
+        return service.dashboard().model_dump()
+
+    @app.get("/api/v1/brands")
+    def brands() -> list[dict[str, object]]:
+        return [brand.model_dump() for brand in service.brands()]
+
+    @app.get("/api/v1/brands/{brand_key}")
+    def brand(brand_key: str) -> dict[str, object]:
+        record = service.brand(brand_key)
+        if record is None:
+            raise HTTPException(status_code=404, detail="Unknown brand")
+        return record.model_dump()
+
+    @app.get("/api/v1/projects")
+    def projects() -> list[dict[str, object]]:
+        return [project.model_dump() for project in service.projects()]
+
+    @app.get("/api/v1/projects/{project_key}")
+    def project(project_key: str) -> dict[str, object]:
+        record = service.project(project_key)
+        if record is None:
+            raise HTTPException(status_code=404, detail="Unknown project")
+        return record.model_dump()
+
+    @app.get("/api/v1/schedules")
+    def schedules() -> list[dict[str, object]]:
+        return [item.model_dump() for item in service.schedule()]
+
+    @app.get("/api/v1/tasks")
+    def tasks() -> dict[str, object]:
+        return service.module("/tasks", "自动化执行").model_dump()
+
+    @app.get("/api/v1/reports")
+    def reports() -> dict[str, object]:
+        return service.module("/reports", "报表中心").model_dump()
+
+    @app.get("/api/v1/data-foundation")
+    def data_foundation() -> dict[str, object]:
+        return service.module("/data-foundation", "数据入库中心").model_dump()
+
+    if FRONTEND_DIST.joinpath("assets").exists():
+        app.mount("/assets", StaticFiles(directory=FRONTEND_DIST / "assets"), name="assets")
+
+    @app.get("/{full_path:path}")
+    def spa(full_path: str) -> FileResponse:
+        index = FRONTEND_DIST / "index.html"
+        if not index.exists():
+            raise HTTPException(status_code=503, detail="Frontend dist is not available")
+        return FileResponse(index)
+
+    return app
+
+
+def _ensure_directory(path: Path) -> bool:
+    if not isinstance(path, Path):
+        raise TypeError("path must be pathlib.Path")
+    path.mkdir(parents=True, exist_ok=True)
+    return path.exists() and path.is_dir()
+
+
+def _check_sqlite(path: Path) -> bool:
+    if not isinstance(path, Path):
+        raise TypeError("path must be pathlib.Path")
+    path.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        connection = sqlite3.connect(path)
+        connection.execute("select 1")
+        connection.close()
+    except sqlite3.Error:
+        return False
+    return True
+
+
+app = create_app()

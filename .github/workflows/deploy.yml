@@ -1,0 +1,39 @@
+name: Deploy Windows Native
+
+on:
+  workflow_dispatch:
+    inputs:
+      target_sha:
+        description: "Trusted main commit SHA to deploy. Leave empty for current main."
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: [self-hosted, windows, x64, middle-platform-prod-native]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - name: Resolve trusted target SHA
+        id: target
+        shell: powershell
+        run: |
+          $target = "${{ inputs.target_sha }}"
+          if ([string]::IsNullOrWhiteSpace($target)) {
+            $target = git rev-parse origin/main
+          }
+          git fetch origin main --prune
+          git merge-base --is-ancestor $target origin/main
+          if ($LASTEXITCODE -ne 0) {
+            throw "Target SHA is not reachable from origin/main."
+          }
+          "sha=$target" >> $env:GITHUB_OUTPUT
+      - name: Deploy release
+        shell: powershell
+        run: |
+          .\ops\windows-native\deploy-release.ps1 -RepositoryRoot "$env:GITHUB_WORKSPACE" -TargetSha "${{ steps.target.outputs.sha }}"

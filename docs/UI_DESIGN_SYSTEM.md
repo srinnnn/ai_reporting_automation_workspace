@@ -2,9 +2,9 @@
 
 ## Visual Language
 
-The official Middle Platform visual language is `Premium Monochrome Enterprise SaaS`.
+The official Middle Platform V3 visual language is `Premium Neutral Enterprise SaaS + Muted Accent`.
 
-Use black, white, and gray first. Use only low-saturation accents for selected states, hover accents, status, small icons, charts, brand accents, and small interactive highlights.
+Use black, white, and gray as the foundation, then layer warm neutral surfaces, graphite structure, muted accent identity, and restrained semantic status. The interface should feel premium, quiet, refined, modern, editorial, professional, and high-end enterprise SaaS.
 
 The approved design baseline is:
 
@@ -18,9 +18,9 @@ These assets are the visual source of truth for future Middle Platform UI work.
 
 Use shared tokens from `design-system/tokens.css`. Future React migration should move or mirror these tokens into `frontend/src/design-system/tokens.css`.
 
-Implementation tokens must remain black, white, graphite, charcoal, neutral gray, low saturation accent, and muted status first. High-saturation colors preserved inside the approved HTML are `REFERENCE_ONLY / LEGACY_REFERENCE_COLOR`; they are not future React global design tokens.
+Implementation tokens must remain neutral foundation, graphite, charcoal, neutral gray, low-saturation accent, and muted status first. High-saturation colors preserved inside the approved HTML are `REFERENCE_ONLY / LEGACY_REFERENCE_COLOR`; they are not future React global design tokens.
 
-Do not introduce a separate blue-dominant theme, dark navy sidebar theme, or high-saturation primary color system.
+Do not introduce a separate blue-dominant theme, dark navy sidebar theme, high-saturation primary color system, or nearly colorless wireframe treatment.
 
 ## Motion Tokens
 
@@ -75,7 +75,7 @@ If a component is genuinely missing, add it to the shared design system first an
 
 The approved homepage structure is locked:
 
-Light Sidebar -> Topbar -> Middle Platform global homepage -> date and primary action -> global filters -> Brand Workspace selector -> current brand banner -> KPI -> P1-P4 -> connected projects -> development feedback summary -> quick navigation -> footer.
+Light Sidebar -> Topbar -> Middle Platform global homepage -> date and primary action -> global filters -> Brand Workspace selector -> current brand banner -> KPI -> P1-P4 -> connected projects -> development feedback summary module -> quick navigation -> footer.
 
 Future AI or developer changes must not:
 
@@ -83,7 +83,7 @@ Future AI or developer changes must not:
 - delete the brand banner
 - turn the brand selector into a capability selector
 - add a second workspace area on the right
-- delete the feedback table
+- delete the feedback module
 - redesign the sidebar
 - apply broad color changes
 
@@ -114,12 +114,13 @@ Future implementation must use the Product Contract / Registry for business sema
 
 Current status:
 
+- `STRUCTURAL_VISUAL_REGRESSION = READY`
 - `VISUAL_REGRESSION = PARTIAL`
-- `RUNTIME_VISUAL_BASELINE = PENDING_REACT_MIGRATION`
+- `RUNTIME_VISUAL_BASELINE = PENDING_SCREENSHOT_COMPARISON`
 - `docs/ui-reference/homepage-approved.png` is the Product Design Source.
-- `tests/visual/baseline/homepage.png` is `SEEDED REFERENCE ONLY`.
+- `tests/visual/runtime/homepage.png` is the Playwright runtime screenshot evidence.
 
-The seeded screenshot is not an operational Playwright regression gate. After React/Vite runtime migration, future key UI changes must compare Playwright runtime screenshots from `http://127.0.0.1:8785/` with confirmed runtime baselines. If an unapproved major visual change exists:
+Future key UI changes must compare Playwright runtime screenshots from `http://127.0.0.1:8785/` with confirmed runtime baselines before reporting a full visual regression gate as ready. If an unapproved major visual change exists:
 
 - `VISUAL_REGRESSION_GATE = FAIL`
 - `MERGE_GATE = BLOCKED`

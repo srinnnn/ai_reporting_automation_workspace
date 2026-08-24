@@ -36,7 +36,7 @@ class TaskPageTests(unittest.TestCase):
         self.assertIn("任务详情 #2", page)
         self.assertIn("failed", page)
         self.assertIn("foundation data missing", page)
-        self.assertIn("暂无可下载文件", page)
+        self.assertIn("任务失败，无结果文件", page)
 
     def test_task_detail_page_has_download_link_for_result_asset(self) -> None:
         app = object.__new__(IntranetApp)
