@@ -239,17 +239,55 @@ class ScenarioRegistryTests(unittest.TestCase):
         self.assertEqual(sent["status"], 200)
         self.assertIn("中台全局首页", page)
         self.assertIn("品牌 Workspace 入口", page)
+        self.assertIn("当前品牌 Workspace", page)
+        self.assertIn('action="/"', page)
         self.assertIn('href="/workspace?brand=ANTA"', page)
-        self.assertIn('href="/workspace?brand=ECCO"', page)
-        self.assertIn('href="/workspace?brand=BSH"', page)
-        self.assertNotIn("当前品牌工作台", page)
-        self.assertNotIn("安踏周报/月报", page)
-        self.assertNotIn("安踏即时零售", page)
+        self.assertIn("安踏周报/月报", page)
+        self.assertIn("安踏即时零售", page)
+        self.assertIn("快捷导航", page)
+        self.assertIn("查看报表", page)
+        self.assertIn("开发排期", page)
         self.assertNotIn("ECCO活动配置", page)
         self.assertNotIn("博西短彩信数据处理", page)
         self.assertNotIn("博世/西门子短彩信规划复核", page)
         self.assertNotIn("AI选品辅助", page)
         self.assertNotIn("文案内容辅助", page)
+        self.assertNotIn("隐藏能力", page)
+        self.assertNotIn("最近处理记录", page)
+        self.assertNotIn("platform-hero", page)
+
+        sent.clear()
+        app.handle_get(SimpleNamespace(path="/?brand=BSH"))
+        page = str(sent["content"])
+        self.assertEqual(sent["status"], 200)
+        self.assertIn("BSH 博西", page)
+        self.assertIn("博西短彩信数据处理", page)
+        self.assertIn("博世/西门子短彩信规划复核", page)
+        self.assertNotIn("安踏周报/月报", page)
+        self.assertNotIn("安踏即时零售", page)
+        self.assertNotIn("ECCO活动配置", page)
+        self.assertNotIn("AI选品辅助", page)
+        self.assertNotIn("文案内容辅助", page)
+
+    def test_home_brand_switch_updates_project_filter_and_category_counts(self) -> None:
+        app = _workspace_app()
+        cases = {
+            "ANTA": (2, ("安踏周报/月报", "安踏即时零售"), ("ECCO活动配置", "博西短彩信数据处理")),
+            "ECCO": (1, ("ECCO活动配置",), ("安踏周报/月报", "博西短彩信数据处理")),
+            "BSH": (2, ("博西短彩信数据处理", "博世/西门子短彩信规划复核"), ("安踏周报/月报", "ECCO活动配置")),
+        }
+
+        for brand_key, (expected_one_count, present_projects, absent_projects) in cases.items():
+            with self.subTest(brand_key=brand_key):
+                page = app._dashboard(_user(), brand_key)
+                self.assertGreaterEqual(page.count("1 个能力"), expected_one_count)
+                for project in present_projects:
+                    self.assertIn(project, page)
+                for project in absent_projects:
+                    self.assertNotIn(project, page)
+                self.assertNotIn("AI选品辅助", page)
+                self.assertNotIn("文案内容辅助", page)
+                self.assertNotIn("隐藏能力", page)
 
     def test_workspace_overview_shows_category_entries_without_full_capability_list(self) -> None:
         app = _workspace_app()

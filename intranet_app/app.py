@@ -567,7 +567,8 @@ class IntranetApp:
             self._redirect(handler, "/login")
             return
         if path == "/":
-            self._send_html(handler, self._dashboard(context.user))
+            workspace_brand_key = query.get("brand", [""])[0]
+            self._send_html(handler, self._dashboard(context.user, workspace_brand_key))
             return
         if path == "/workspace":
             workspace_brand_key = query.get("brand", [""])[0]
@@ -2094,14 +2095,17 @@ class IntranetApp:
             raise TypeError("user must be UserRecord")
         if not isinstance(workspace_brand_key, str):
             raise TypeError("workspace_brand_key must be str")
-        workspace_cards = "".join(self._workspace_entry_card(option) for option in _workspace_brand_options(self.scenarios))
-        metric_cards = "".join(
-            f"<article><span>{_e(label)}</span><strong>{_e(value)}</strong></article>"
-            for label, value in self._dashboard_metrics()
+        current_brand_key = _normalize_workspace_brand_key(workspace_brand_key, self.scenarios)
+        current_brand = _workspace_brand_by_key(current_brand_key, self.scenarios)
+        grouped_keys = _workspace_scenario_keys_by_priority(self.scenarios, current_brand.key)
+        category_cards = "".join(
+            self._workspace_category_entry_card(current_brand.key, priority, title, description, len(grouped_keys[priority]))
+            for priority, title, description in PRIORITY_SECTIONS
         )
-        job_rows = "".join(self._job_row(job) for job in self.storage.list_jobs())
-        if not job_rows:
-            job_rows = "<tr><td colspan='7'>暂无处理记录</td></tr>"
+        selected_brand_metrics = self._workspace_summary_cards(grouped_keys)
+        connected_projects = self._brand_connected_projects(grouped_keys)
+        feedback_summary = self._brand_feedback_summary(current_brand.key)
+        quick_navigation = self._home_quick_navigation()
         body = f"""
         <div class="platform-layout">
           {self._platform_sidebar("home")}
@@ -2113,43 +2117,71 @@ class IntranetApp:
               </div>
               <a class="button secondary" href="/logout">退出</a>
             </section>
-            <section class="platform-hero">
-              <div class="platform-hero-copy">
-                <span class="eyebrow">Middle Platform</span>
-                <h2>运营一组 AI 自动化中台</h2>
-                <p>统一进入品牌工作台、数据入库、自动化执行和资料投递；首页只展示全局概览和品牌入口。</p>
-              </div>
-              <div class="button-row">
-                <a class="button" href="/data-foundation">数据入库中心</a>
-                <a class="button secondary" href="/automation-runs">自动化数据执行</a>
-                <a class="button secondary" href="/archive-intake">投递资料</a>
-              </div>
-              <span class="platform-hero-accent" aria-hidden="true"></span>
+            <section class="global-filter-bar" aria-label="全局筛选">
+              <label><span>项目</span><select><option>全部项目</option></select></label>
+              <label><span>品牌</span><select><option>{_e(current_brand.label)}</option></select></label>
+              <label><span>优先级</span><select><option>P1-P4</option></select></label>
+              <label><span>状态</span><select><option>全部状态</option></select></label>
             </section>
-            <section class="platform-kpi-grid">{metric_cards}</section>
-            <section class="platform-section">
+            <section class="platform-section brand-workspace-entry">
               <div class="section-heading">
                 <h2>品牌 Workspace 入口</h2>
-                <p>选择品牌后进入单品牌概览，再按 P1-P4 查看分类详情。</p>
+                <p>选择一个品牌作为当前上下文，下方仅展示该品牌的分类、项目和反馈状态。</p>
               </div>
-              <div class="workspace-entry-grid">{workspace_cards}</div>
+              {self._workspace_brand_selector(current_brand.key, "/")}
+              <a class="selected-brand-banner" href="/workspace?brand={quote(current_brand.key)}">
+                <span class="brand-monogram">{_e(current_brand.key)}</span>
+                <span>
+                  <small>当前品牌 Workspace</small>
+                  <strong>{_e(current_brand.label)}</strong>
+                </span>
+                <em>进入品牌 Workspace →</em>
+              </a>
             </section>
-            <section class="platform-section" id="recent-jobs">
+            <section class="platform-section">
               <div class="section-heading">
-                <h2>最近处理记录</h2>
-                <p>来自系统真实处理记录，不展示演示数据。</p>
+                <h2>{_e(current_brand.label)} KPI</h2>
+                <p>指标由当前品牌已接入能力推导；没有事实源的数据不展示假数。</p>
               </div>
-              <table>
-                <thead><tr><th>编号</th><th>模块</th><th>品牌</th><th>类型</th><th>提交人</th><th>时间</th><th>结果</th></tr></thead>
-                <tbody>{job_rows}</tbody>
-              </table>
+              <div class="workspace-summary-grid">{selected_brand_metrics}</div>
             </section>
+            <section class="platform-section">
+              <div class="section-heading">
+                <h2>P1-P4 分级入口</h2>
+                <p>进入分类详情页后才展示该分类下的具体能力。</p>
+              </div>
+              <div class="workspace-category-grid">{category_cards}</div>
+            </section>
+            <section class="platform-section">
+              <div class="section-heading">
+                <h2>已接项目</h2>
+                <p>仅展示当前品牌已经接入 Workspace 的真实项目。</p>
+              </div>
+              <div class="connected-project-list">{connected_projects}</div>
+            </section>
+            <section class="platform-section">
+              <div class="section-heading">
+                <h2>已开发反馈汇总</h2>
+                <p>当前品牌反馈记录产生后在此汇总。</p>
+              </div>
+              {feedback_summary}
+            </section>
+            <section class="platform-section">
+              <div class="section-heading">
+                <h2>快捷导航</h2>
+              </div>
+              <div class="quick-navigation-grid">{quick_navigation}</div>
+            </section>
+            <footer class="platform-footer">Middle Platform · Brand Workspace V2</footer>
           </div>
         </div>
         """
         assert "中台全局首页" in body
-        assert "当前品牌工作台" not in body
+        assert current_brand.label in body
         assert "巡查" not in body
+        assert "最近处理记录" not in body
+        assert "platform-hero" not in body
+        assert MULTI_BRAND_SOURCE_BRAND not in body
         return self._page("运营一组自动化中台", body)
 
     def _platform_sidebar(self, active: str) -> str:
@@ -2161,7 +2193,6 @@ class IntranetApp:
             ("data", "数据入库中心", "/data-foundation"),
             ("automation", "自动化数据执行", "/automation-runs"),
             ("archive", "投递资料", "/archive-intake"),
-            ("records", "最近处理记录", "/#recent-jobs"),
             ("settings", "系统设置", "/admin/ai-settings"),
         )
         links = "".join(
@@ -2196,6 +2227,68 @@ class IntranetApp:
         assert MULTI_BRAND_SOURCE_BRAND not in result
         return result
 
+    def _workspace_summary_cards(self, grouped_keys: dict[str, tuple[str, ...]]) -> str:
+        if not isinstance(grouped_keys, dict):
+            raise TypeError("grouped_keys must be dict")
+        capability_count = sum(len(keys) for keys in grouped_keys.values())
+        active_priority_count = sum(1 for keys in grouped_keys.values() if keys)
+        result = f"""
+        <article><span>品牌状态</span><strong>已接入</strong></article>
+        <article><span>能力数量</span><strong>{capability_count}</strong></article>
+        <article><span>分类数量</span><strong>{len(PRIORITY_SECTIONS)}</strong></article>
+        <article><span>已接分类</span><strong>{active_priority_count}</strong></article>
+        """
+        assert "隐藏能力" not in result
+        return result
+
+    def _brand_connected_projects(self, grouped_keys: dict[str, tuple[str, ...]]) -> str:
+        if not isinstance(grouped_keys, dict):
+            raise TypeError("grouped_keys must be dict")
+        rows: list[str] = []
+        for priority, title, _ in PRIORITY_SECTIONS:
+            for scenario_key in grouped_keys[priority]:
+                scenario = self.scenarios[scenario_key]
+                rows.append(
+                    f"""
+                    <a class="connected-project-row" href="{_e(self._scenario_href(scenario.key))}">
+                      <span>{_e(priority)} · {_e(title)}</span>
+                      <strong>{_e(scenario.name)}</strong>
+                      <em>{_e(scenario.business_type)}</em>
+                    </a>
+                    """
+                )
+        if not rows:
+            return "<div class='empty-state'>当前品牌暂无已接项目</div>"
+        result = "".join(rows)
+        assert MULTI_BRAND_SOURCE_BRAND not in result
+        return result
+
+    def _brand_feedback_summary(self, current_brand_key: str) -> str:
+        if not isinstance(current_brand_key, str) or not current_brand_key.strip():
+            raise ValueError("current_brand_key must be non-empty text")
+        result = """
+        <div class="brand-feedback-empty">
+          <strong>暂无品牌反馈记录</strong>
+          <span>业务反馈产生后将在这里按当前品牌汇总。</span>
+        </div>
+        """
+        assert result.strip()
+        return result
+
+    def _home_quick_navigation(self) -> str:
+        items = (
+            ("数据入库中心", "/data-foundation", "统一归档、识别和校验业务资料。"),
+            ("自动化数据执行", "/automation-runs", "查看真实任务执行和结果状态。"),
+            ("查看报表", "/anta-reporting", "进入已接入报表能力，按品牌与分类继续收敛。"),
+            ("开发排期", "/development-roadmap", "查看开发节奏、资料依赖和验收节点。"),
+        )
+        result = "".join(
+            f"<a class=\"quick-navigation-card\" href=\"{_e(href)}\"><strong>{_e(label)}</strong><span>{_e(description)}</span></a>"
+            for label, href, description in items
+        )
+        assert result.strip()
+        return result
+
     def _workspace_overview_page(self, user: UserRecord, workspace_brand_key: str = "") -> str:
         if not isinstance(user, UserRecord):
             raise TypeError("user must be UserRecord")
@@ -2206,8 +2299,6 @@ class IntranetApp:
             self._workspace_category_entry_card(current_brand.key, priority, title, description, len(grouped_keys[priority]))
             for priority, title, description in PRIORITY_SECTIONS
         )
-        capability_count = sum(len(keys) for keys in grouped_keys.values())
-        active_priority_count = sum(1 for keys in grouped_keys.values() if keys)
         body = f"""
         <div class="platform-layout">
           {self._platform_sidebar("workspace")}
@@ -2226,12 +2317,7 @@ class IntranetApp:
               </div>
               <div class="workspace-actions">{self._workspace_brand_selector(current_brand.key)}</div>
             </section>
-            <section class="workspace-summary-grid">
-              <article><span>品牌状态</span><strong>已接入</strong></article>
-              <article><span>能力数量</span><strong>{capability_count}</strong></article>
-              <article><span>分类数量</span><strong>{len(PRIORITY_SECTIONS)}</strong></article>
-              <article><span>已接分类</span><strong>{active_priority_count}</strong></article>
-            </section>
+            <section class="workspace-summary-grid">{self._workspace_summary_cards(grouped_keys)}</section>
             <section class="platform-section">
               <div class="section-heading">
                 <h2>能力分类</h2>
@@ -2265,9 +2351,11 @@ class IntranetApp:
         assert priority in result
         return result
 
-    def _workspace_brand_selector(self, current_brand_key: str) -> str:
+    def _workspace_brand_selector(self, current_brand_key: str, action_path: str = "/workspace") -> str:
         if not isinstance(current_brand_key, str) or not current_brand_key.strip():
             raise ValueError("current_brand_key must be non-empty text")
+        if not isinstance(action_path, str) or not action_path.strip():
+            raise ValueError("action_path must be non-empty text")
         options = _workspace_brand_options(self.scenarios)
         if not options:
             raise ValueError("at least one workspace brand option is required")
@@ -2276,7 +2364,7 @@ class IntranetApp:
             for option in options
         )
         result = f"""
-        <form class="brand-workspace-selector" method="get" action="/workspace">
+        <form class="brand-workspace-selector" method="get" action="{_e(action_path)}">
           <label for="workspace-brand">品牌工作台</label>
           <div class="brand-switcher-control">
             <select id="workspace-brand" name="brand">{option_html}</select>
@@ -4649,11 +4737,15 @@ class IntranetApp:
         task_id = _task_id_value(task)
         status = _task_text(task, "status")
         filename = ""
+        file_path = ""
+        file_size = ""
         available = False
         if status == "success" and self._permission_service().can_download_task(user, task):
             try:
                 view = self._task_result_service().get_result(task_id)
                 filename = view.filename
+                file_path = str(view.file_path)
+                file_size = str(view.result_asset.get("size", ""))
                 available = True
             except (FileNotFoundError, ValueError, TypeError, PermissionError):
                 available = False
@@ -4661,10 +4753,13 @@ class IntranetApp:
         status_text = "可下载" if available else _task_download_status_text(status)
         result = f"""
         <article class="console-panel task-asset-panel">
-          <h2>结果文件</h2>
+          <h2>Result Asset / 结果文件</h2>
           <dl class="console-definition">
             <div><dt>结果文件</dt><dd>{_e(filename or "-")}</dd></div>
             <div><dt>状态</dt><dd>{_e(status_text)}</dd></div>
+            <div><dt>download available</dt><dd>{str(available).lower()}</dd></div>
+            <div><dt>file_path</dt><dd>{_e(file_path or "-")}</dd></div>
+            <div><dt>size</dt><dd>{_e(file_size or "-")}</dd></div>
           </dl>
           {download_html}
         </article>
@@ -4697,7 +4792,7 @@ class IntranetApp:
         if status in {"pending", "running"}:
             return "<p class='note'>任务完成后可下载</p>"
         if status == "failed":
-            return "<p class='note'>任务失败，无结果文件</p>"
+            return "<p class='note'>暂无可下载文件</p>"
         if status != "success":
             return "<p class='note'>暂无可下载文件</p>"
         if not self._permission_service().can_download_task(user, task):
