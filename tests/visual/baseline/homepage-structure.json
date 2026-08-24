@@ -1,0 +1,10 @@
+{
+  "filters": ["项目", "品牌", "优先级", "状态"],
+  "brandWorkspace": {
+    "selectorCount": 1,
+    "selectedBannerCount": 1,
+    "flatBrandCardCount": 0,
+    "defaultBrand": "ANTA 安踏"
+  },
+  "categoryEntries": ["P1", "P2", "P3", "P4"]
+}

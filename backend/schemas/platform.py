@@ -10,6 +10,17 @@ class CategorySummary(BaseModel):
     name: str
     capability_count: int = Field(ge=0)
     status: str
+    capabilities: tuple["CapabilitySummary", ...] = ()
+
+
+class CapabilitySummary(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    key: str
+    name: str
+    brand_key: str
+    category_key: str = Field(pattern=r"^P[1-4]$")
+    status: str
 
 
 class BrandSummary(BaseModel):

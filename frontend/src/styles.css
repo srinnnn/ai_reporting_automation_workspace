@@ -31,6 +31,9 @@ button.primary { background: var(--accent-graphite); color: white; border-color:
 .section-title h2, .panel h2 { font-size: 15px; margin: 0; }
 .section-title span, .section-title a { font-size: 12px; color: var(--text-muted); }
 .brand-grid, .category-grid, .kpi-grid, .panel-grid { display: grid; gap: 12px; }
+.brand-workspace-panel { display: grid; gap: 12px; }
+.brand-select-label { color: var(--text-muted); font-size: 12px; }
+.brand-select { width: min(360px, 100%); border: 1px solid var(--border-control); border-radius: var(--radius-sm); padding: 10px 12px; color: var(--text-primary); background: var(--bg-surface); font: inherit; }
 .brand-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .category-grid, .kpi-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .panel-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }

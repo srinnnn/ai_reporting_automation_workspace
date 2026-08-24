@@ -3,6 +3,15 @@ export type CategorySummary = {
   name: string;
   capability_count: number;
   status: string;
+  capabilities: CapabilitySummary[];
+};
+
+export type CapabilitySummary = {
+  key: string;
+  name: string;
+  brand_key: string;
+  category_key: "P1" | "P2" | "P3" | "P4";
+  status: string;
 };
 
 export type BrandSummary = {

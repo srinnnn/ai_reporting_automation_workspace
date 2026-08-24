@@ -1,6 +1,6 @@
 import { IconArrowRight, IconCalendar, IconFilter, IconPlus } from "@tabler/icons-react";
 import { useQuery } from "@tanstack/react-query";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { api } from "../api/client";
 import type { BrandSummary, ProjectSummary } from "../types/platform";
 
@@ -12,10 +12,12 @@ const emptyCategories = [
 ];
 
 export function HomePage() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const { data, isLoading, error } = useQuery({ queryKey: ["dashboard"], queryFn: api.dashboard });
   const brands = data?.brands ?? [];
   const projects = data?.projects ?? [];
-  const selectedBrand = brands[0];
+  const selectedBrandKey = searchParams.get("brand") ?? brands[0]?.key ?? "";
+  const selectedBrand = brands.find((brand) => brand.key === selectedBrandKey) ?? brands[0];
 
   return (
     <div className="page">
@@ -30,16 +32,20 @@ export function HomePage() {
           <button className="primary"><IconPlus size={16} /> 新建任务</button>
         </div>
       </section>
-      <section className="filter-bar">
+      <section className="filter-bar" data-testid="global-filters">
         <span><IconFilter size={16} /> 全局筛选</span>
+        <button>项目</button>
         <button>品牌</button>
         <button>优先级</button>
         <button>状态</button>
       </section>
       {isLoading ? <StateLine text="加载中" /> : null}
       {error ? <StateLine text="API 暂不可用，请稍后重试" /> : null}
-      <BrandSelector brands={brands} />
-      <BrandBanner brand={selectedBrand} />
+      <BrandSelector
+        brands={brands}
+        selectedBrand={selectedBrand}
+        onSelect={(brandKey) => setSearchParams({ brand: brandKey })}
+      />
       <KpiStrip brandCount={brands.length} projectCount={projects.length} />
       <CategoryEntry brand={selectedBrand} />
       <ProjectList projects={projects} />
@@ -54,34 +60,48 @@ function StateLine({ text }: { text: string }) {
   return <div className="state-line">{text}</div>;
 }
 
-function BrandSelector({ brands }: { brands: BrandSummary[] }) {
+function BrandSelector({
+  brands,
+  selectedBrand,
+  onSelect,
+}: {
+  brands: BrandSummary[];
+  selectedBrand?: BrandSummary;
+  onSelect: (brandKey: string) => void;
+}) {
   return (
-    <section className="panel">
+    <section className="panel brand-workspace-panel" data-testid="brand-workspace-entry">
       <div className="section-title">
         <h2>品牌 Workspace 入口</h2>
         <span>{brands.length || 0} 个品牌</span>
       </div>
-      <div className="brand-grid">
-        {brands.length ? brands.map((brand) => (
-          <Link className="brand-card" to={`/workspace/${brand.key}`} key={brand.key}>
-            <strong>{brand.name}</strong>
-            <span>{brand.tagline}</span>
-            <em>进入工作台 <IconArrowRight size={14} /></em>
-          </Link>
-        )) : <EmptyText text="暂无品牌数据" />}
-      </div>
+      {brands.length ? (
+        <>
+          <label className="brand-select-label" htmlFor="brand-selector">品牌</label>
+          <select
+            id="brand-selector"
+            className="brand-select"
+            value={selectedBrand?.key ?? brands[0].key}
+            onChange={(event) => onSelect(event.target.value)}
+          >
+            {brands.map((brand) => <option value={brand.key} key={brand.key}>{brand.name}</option>)}
+          </select>
+          <BrandBanner brand={selectedBrand ?? brands[0]} />
+        </>
+      ) : <EmptyText text="暂无品牌数据" />}
     </section>
   );
 }
 
 function BrandBanner({ brand }: { brand?: BrandSummary }) {
   return (
-    <section className="brand-banner">
+    <section className="brand-banner" data-testid="selected-brand-banner">
       <div>
         <span>当前品牌</span>
         <strong>{brand?.name ?? "暂无数据"}</strong>
       </div>
       <p>{brand?.tagline ?? "Production 默认不加载 Demo 品牌数据。"}</p>
+      {brand ? <Link className="text-link" to={`/workspace/${brand.key}`}>进入 Brand Workspace <IconArrowRight size={14} /></Link> : null}
     </section>
   );
 }
@@ -98,7 +118,7 @@ function KpiStrip({ brandCount, projectCount }: { brandCount: number; projectCou
 }
 
 function CategoryEntry({ brand }: { brand?: BrandSummary }) {
-  const categories = brand?.categories ?? emptyCategories.map((item) => ({ ...item, capability_count: 0, status: "NOT_CONNECTED" }));
+  const categories = brand?.categories ?? emptyCategories.map((item) => ({ ...item, capability_count: 0, status: "NOT_CONNECTED", capabilities: [] }));
   return (
     <section className="panel">
       <div className="section-title">

@@ -21,7 +21,7 @@ FRONTEND_DIST = ROOT_DIR / "frontend" / "dist"
 def create_app() -> FastAPI:
     config = load_core_config(root_dir=ROOT_DIR)
     demo_mode = os.environ.get("DEMO_MODE", "false").strip().lower() in {"1", "true", "yes", "on"}
-    service = PlatformService(demo_mode=demo_mode)
+    service = PlatformService(template_root=config.files.template_root, demo_mode=demo_mode)
     app = FastAPI(title="Middle Platform API", version=APP_VERSION)
 
     @app.get("/api/v1/health")
@@ -34,13 +34,16 @@ def create_app() -> FastAPI:
         database_ready = _check_sqlite(config.database.sqlite_path)
         frontend_ready = FRONTEND_DIST.joinpath("index.html").exists() if config.environment == "production" else True
         status = "ok" if runtime_ready and database_ready and frontend_ready else "error"
-        return {
+        payload = {
             "status": status,
             "runtime_directory": runtime_ready,
             "database": database_ready,
             "frontend_dist": frontend_ready,
             "environment": config.environment,
         }
+        if status != "ok":
+            raise HTTPException(status_code=503, detail=payload)
+        return payload
 
     @app.get("/api/v1/version")
     def version() -> dict[str, str]:

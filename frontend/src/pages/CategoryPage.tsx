@@ -21,7 +21,12 @@ export function CategoryPage() {
       </section>
       <section className="panel">
         <div className="section-title"><h2>能力列表</h2><span>{category.capability_count} 个能力</span></div>
-        {category.capability_count > 0 ? <article className="project-row"><strong>{data.name} {category.name}</strong><span>{category.status}</span></article> : <p className="empty">当前品牌暂无接入能力</p>}
+        {category.capabilities.length > 0 ? category.capabilities.map((capability) => (
+          <article className="project-row" key={capability.key}>
+            <strong>{capability.name}</strong>
+            <span>{data.key} / {category.key} / {capability.status}</span>
+          </article>
+        )) : <p className="empty">当前品牌暂无接入能力</p>}
       </section>
     </div>
   );

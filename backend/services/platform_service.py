@@ -1,23 +1,22 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from pathlib import Path
 
-from backend.schemas.platform import BrandSummary, CategorySummary, DashboardSummary, EmptyModule, ProjectSummary, ScheduleItem
-
-
-P_CATEGORIES: tuple[tuple[str, str], ...] = (
-    ("P1", "数据提效"),
-    ("P2", "内容提效"),
-    ("P3", "配置提效"),
-    ("P4", "复查"),
-)
+from backend.fixtures.demo_platform import DEMO_SCHEDULE
+from backend.schemas.platform import BrandSummary, CapabilitySummary, CategorySummary, DashboardSummary, EmptyModule, ProjectSummary, ScheduleItem
+from intranet_app.app import PRIORITY_SECTIONS, _workspace_brand_options, _workspace_scenario_keys_by_priority
+from intranet_app.scenarios import build_scenarios
 
 
 @dataclass(frozen=True)
 class PlatformService:
+    template_root: Path
     demo_mode: bool = False
 
     def __post_init__(self) -> None:
+        if not isinstance(self.template_root, Path):
+            raise TypeError("template_root must be pathlib.Path")
         if not isinstance(self.demo_mode, bool):
             raise TypeError("demo_mode must be bool")
 
@@ -35,12 +34,10 @@ class PlatformService:
         return result
 
     def brands(self) -> tuple[BrandSummary, ...]:
-        if not self.demo_mode:
-            return ()
-        result = (
-            self._brand("ANTA", "ANTA 安踏", "Demo brand workspace", {"P1": 1, "P3": 1}),
-            self._brand("ECCO", "ECCO", "Demo brand workspace", {"P3": 1}),
-            self._brand("BSH", "BSH 博西家电", "Demo brand workspace", {"P1": 1, "P4": 1}),
+        scenarios = build_scenarios(self.template_root)
+        result = tuple(
+            self._brand(option.key, option.label, "Brand Workspace", _workspace_scenario_keys_by_priority(scenarios, option.key), scenarios)
+            for option in _workspace_brand_options(scenarios)
         )
         assert result
         return result
@@ -55,14 +52,17 @@ class PlatformService:
         return None
 
     def projects(self) -> tuple[ProjectSummary, ...]:
-        if not self.demo_mode:
-            return ()
-        result = (
-            ProjectSummary(key="anta-reporting", name="安踏周报/月报", brand_key="ANTA", category_key="P1", status="DEMO"),
-            ProjectSummary(key="anta-retail", name="安踏即时零售", brand_key="ANTA", category_key="P3", status="DEMO"),
-            ProjectSummary(key="ecco-activity-config", name="ECCO活动配置", brand_key="ECCO", category_key="P3", status="DEMO"),
-            ProjectSummary(key="bsh-sms-data", name="博西短彩信数据处理", brand_key="BSH", category_key="P1", status="DEMO"),
-            ProjectSummary(key="bsh-sms-review", name="博世/西门子短彩信规划复核", brand_key="BSH", category_key="P4", status="DEMO"),
+        result = tuple(
+            ProjectSummary(
+                key=capability.key,
+                name=capability.name,
+                brand_key=brand.key,
+                category_key=category.key,
+                status=capability.status,
+            )
+            for brand in self.brands()
+            for category in brand.categories
+            for capability in category.capabilities
         )
         assert result
         return result
@@ -79,9 +79,16 @@ class PlatformService:
     def schedule(self) -> tuple[ScheduleItem, ...]:
         if not self.demo_mode:
             return ()
-        result = (
-            ScheduleItem(key="v3-runtime", name="V3 Runtime Migration", brand_key="PLATFORM", status="DEMO", milestone="React + FastAPI", risk="LOW"),
-            ScheduleItem(key="visual-baseline", name="Runtime Visual Baseline", brand_key="PLATFORM", status="DEMO", milestone="Playwright screenshot", risk="MEDIUM"),
+        result = tuple(
+            ScheduleItem(
+                key=item.key,
+                name=item.name,
+                brand_key=item.brand_key,
+                status=item.status,
+                milestone=item.milestone,
+                risk=item.risk,
+            )
+            for item in DEMO_SCHEDULE
         )
         assert result
         return result
@@ -96,15 +103,16 @@ class PlatformService:
         return result
 
     @staticmethod
-    def _brand(key: str, name: str, tagline: str, capability_counts: dict[str, int]) -> BrandSummary:
+    def _brand(
+        key: str,
+        name: str,
+        tagline: str,
+        scenario_keys_by_priority: dict[str, tuple[str, ...]],
+        scenarios: dict[str, object],
+    ) -> BrandSummary:
         categories = tuple(
-            CategorySummary(
-                key=category_key,
-                name=category_name,
-                capability_count=capability_counts.get(category_key, 0),
-                status="DEMO" if capability_counts.get(category_key, 0) > 0 else "NOT_CONNECTED",
-            )
-            for category_key, category_name in P_CATEGORIES
+            _category(key, category_key, category_name, scenario_keys_by_priority[category_key], scenarios)
+            for category_key, category_name, _ in PRIORITY_SECTIONS
         )
         result = BrandSummary(
             key=key,
@@ -115,3 +123,33 @@ class PlatformService:
         )
         assert isinstance(result, BrandSummary)
         return result
+
+
+def _category(
+    brand_key: str,
+    category_key: str,
+    category_name: str,
+    scenario_keys: tuple[str, ...],
+    scenarios: object,
+) -> CategorySummary:
+    if not isinstance(scenarios, dict):
+        raise TypeError("scenarios must be dict")
+    capabilities = tuple(
+        CapabilitySummary(
+            key=scenario_key,
+            name=scenarios[scenario_key].name,
+            brand_key=brand_key,
+            category_key=category_key,
+            status="CONNECTED",
+        )
+        for scenario_key in scenario_keys
+    )
+    result = CategorySummary(
+        key=category_key,
+        name=category_name,
+        capability_count=len(capabilities),
+        status="CONNECTED" if capabilities else "NOT_CONNECTED",
+        capabilities=capabilities,
+    )
+    assert isinstance(result, CategorySummary)
+    return result
