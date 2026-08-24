@@ -33,6 +33,7 @@ RUN python -m pip install --no-cache-dir --upgrade pip \
 
 COPY backend ./backend
 COPY intranet_app ./intranet_app
+COPY tools ./tools
 COPY --from=frontend-build /app/frontend/dist ./frontend/dist
 
 RUN mkdir -p /app/runtime/uploads /app/runtime/results /app/runtime/logs

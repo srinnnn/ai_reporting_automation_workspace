@@ -53,10 +53,15 @@ jobs:
       - name: Smoke container
         run: |
           docker run -d --name middle-platform-smoke -p 8785:8785 middle-platform:${{ github.sha }}
-          for i in $(seq 1 20); do
-            if curl -fsS http://127.0.0.1:8785/api/v1/health; then break; fi
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:8785/api/v1/health; then ready=1; break; fi
             sleep 2
           done
+          if [ "${ready:-0}" != "1" ]; then
+            docker logs middle-platform-smoke
+            docker rm -f middle-platform-smoke
+            exit 1
+          fi
           curl -fsS http://127.0.0.1:8785/
           curl -fsS http://127.0.0.1:8785/api/v1/ready
           curl -fsS http://127.0.0.1:8785/api/v1/version

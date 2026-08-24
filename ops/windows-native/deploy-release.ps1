@@ -45,7 +45,7 @@ try {
         Pop-Location
     }
 
-    foreach ($name in @("backend", "intranet_app", "ai_report_config_materials")) {
+    foreach ($name in @("backend", "intranet_app", "tools", "ai_report_config_materials")) {
         Copy-Item -LiteralPath (Join-Path $RepositoryRoot $name) -Destination (Join-Path $releasePath $name) -Recurse
     }
     New-PlatformDirectory -Path (Join-Path $releasePath "frontend")
