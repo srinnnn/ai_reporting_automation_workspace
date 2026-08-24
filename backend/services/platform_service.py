@@ -5,8 +5,8 @@ from pathlib import Path
 
 from backend.fixtures.demo_platform import DEMO_SCHEDULE
 from backend.schemas.platform import BrandSummary, CapabilitySummary, CategorySummary, DashboardSummary, EmptyModule, ProjectSummary, ScheduleItem
-from intranet_app.app import PRIORITY_SECTIONS, _workspace_brand_options, _workspace_scenario_keys_by_priority
 from intranet_app.scenarios import build_scenarios
+from intranet_app.workspace_metadata import PRIORITY_SECTIONS, _workspace_brand_options, _workspace_scenario_keys_by_priority
 
 
 @dataclass(frozen=True)
