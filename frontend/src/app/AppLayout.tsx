@@ -1,4 +1,16 @@
-import { IconChartBar, IconClock, IconDatabase, IconHome, IconLayoutGrid, IconPlayerPlay, IconSettings, IconArchive } from "@tabler/icons-react";
+import {
+  IconArchive,
+  IconBell,
+  IconChartBar,
+  IconClock,
+  IconDatabase,
+  IconHome,
+  IconLayoutGrid,
+  IconMenu2,
+  IconPlayerPlay,
+  IconSearch,
+  IconSettings,
+} from "@tabler/icons-react";
 import { NavLink, Outlet } from "react-router-dom";
 
 const navItems = [
@@ -37,7 +49,18 @@ export function AppLayout() {
       </aside>
       <main className="main">
         <header className="topbar">
-          <span>中台管理平台</span>
+          <div className="topbar-title">
+            <IconMenu2 size={18} />
+            <span>中台管理平台</span>
+          </div>
+          <div className="topbar-actions">
+            <button>全域项目</button>
+            <label className="topbar-search">
+              <IconSearch size={15} />
+              <input placeholder="搜索项目、品牌或功能..." />
+            </label>
+            <button aria-label="通知"><IconBell size={16} /></button>
+          </div>
           <strong>Middle Platform V3</strong>
         </header>
         <Outlet />

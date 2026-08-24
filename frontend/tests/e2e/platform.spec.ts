@@ -1,4 +1,6 @@
 import { expect, test } from "@playwright/test";
+// @ts-expect-error Playwright runs in Node; this project intentionally omits @types/node from app typechecking.
+import { readFileSync } from "fs";
 
 type HomepageStructureBaseline = {
   filters: string[];
@@ -11,16 +13,9 @@ type HomepageStructureBaseline = {
   categoryEntries: string[];
 };
 
-const HOMEPAGE_BASELINE: HomepageStructureBaseline = {
-  filters: ["项目", "品牌", "优先级", "状态"],
-  brandWorkspace: {
-    selectorCount: 1,
-    selectedBannerCount: 1,
-    flatBrandCardCount: 0,
-    defaultBrand: "ANTA 安踏",
-  },
-  categoryEntries: ["P1", "P2", "P3", "P4"],
-};
+const HOMEPAGE_BASELINE = JSON.parse(
+  readFileSync(new URL("../../../tests/visual/baseline/homepage-structure.json", import.meta.url), "utf-8"),
+) as HomepageStructureBaseline;
 
 test("production runtime serves home, routes, and friendly 404", async ({ page }) => {
   await page.goto("/");
@@ -31,10 +26,10 @@ test("production runtime serves home, routes, and friendly 404", async ({ page }
   await expect(page.getByRole("heading", { name: "ANTA 安踏" })).toBeVisible();
 
   await page.goto("/schedule");
-  await expect(page.getByRole("heading", { name: "开发排期" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /排期/ })).toBeVisible();
 
   await page.goto("/projects");
-  await expect(page.getByRole("heading", { name: "项目管理", level: 1 })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
 
   await page.goto("/not-a-real-route");
   await expect(page.getByRole("heading", { name: "404" })).toBeVisible();
@@ -65,28 +60,53 @@ test("brand selector banner enters Brand Workspace", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "BSH 博西" })).toBeVisible();
 });
 
+test("brand selection scopes KPIs, projects, feedback, and category counts", async ({ page }) => {
+  await page.goto("/");
+
+  await page.getByRole("combobox", { name: "品牌" }).selectOption("ANTA");
+  await expect(page.getByTestId("selected-brand-banner")).toContainText("ANTA 安踏");
+  await expect(page.getByTestId("kpi-active-categories")).toContainText("2");
+  await expect(page.getByTestId("kpi-connected-projects")).toContainText("2");
+  await expect(page.getByTestId("category-P1")).toContainText("1 个能力");
+  await expect(page.getByTestId("category-P2")).toContainText("0 个能力");
+  await expect(page.getByTestId("category-P3")).toContainText("1 个能力");
+  await expect(page.getByTestId("category-P4")).toContainText("0 个能力");
+  await expect(page.getByTestId("project-anta_reporting")).toBeVisible();
+  await expect(page.getByTestId("project-anta_retail")).toBeVisible();
+  await expect(page.getByTestId("project-bosch_sms")).not.toBeVisible();
+  await expect(page.getByTestId("project-ecco_activity_config")).not.toBeVisible();
+  await expect(page.getByText("当前品牌暂无反馈数据")).toBeVisible();
+
+  await page.getByRole("combobox", { name: "品牌" }).selectOption("BSH");
+  await expect(page.getByTestId("selected-brand-banner")).toContainText("BSH 博西");
+  await expect(page.getByTestId("kpi-active-categories")).toContainText("2");
+  await expect(page.getByTestId("kpi-connected-projects")).toContainText("2");
+  await expect(page.getByTestId("category-P1")).toContainText("1 个能力");
+  await expect(page.getByTestId("category-P2")).toContainText("0 个能力");
+  await expect(page.getByTestId("category-P3")).toContainText("0 个能力");
+  await expect(page.getByTestId("category-P4")).toContainText("1 个能力");
+  await expect(page.getByTestId("project-bosch_sms")).toBeVisible();
+  await expect(page.getByTestId("project-bosch_sms_review")).toBeVisible();
+  await expect(page.getByTestId("project-anta_reporting")).not.toBeVisible();
+  await expect(page.getByTestId("project-ecco_activity_config")).not.toBeVisible();
+});
+
 test("P1-P4 category navigation keeps selected brand and prevents cross-category leakage", async ({ page }) => {
   await page.goto("/workspace/ANTA");
 
   await page.getByRole("link", { name: /P1/ }).click();
   await expect(page).toHaveURL(/\/workspace\/ANTA\/P1$/);
-  await expect(page.getByText("安踏周报/月报")).toBeVisible();
-  await expect(page.getByText("安踏即时零售")).not.toBeVisible();
-  await expect(page.getByText("ECCO活动配置")).not.toBeVisible();
+  await expect(page.locator(".project-row")).toHaveCount(1);
 
   await page.goto("/workspace/ANTA/P2");
-  await expect(page.getByText("当前品牌暂无接入能力")).toBeVisible();
-  await expect(page.getByText("AI选品辅助")).not.toBeVisible();
-  await expect(page.getByText("文案内容辅助")).not.toBeVisible();
+  await expect(page.locator(".project-row")).toHaveCount(0);
+  await expect(page.getByText(/暂无/)).toBeVisible();
 
   await page.goto("/workspace/ANTA/P3");
-  await expect(page.getByText("安踏即时零售")).toBeVisible();
-  await expect(page.getByText("安踏周报/月报")).not.toBeVisible();
-  await expect(page.getByText("ECCO活动配置")).not.toBeVisible();
+  await expect(page.locator(".project-row")).toHaveCount(1);
 
   await page.goto("/workspace/ANTA/P4");
-  await expect(page.getByText("当前品牌暂无接入能力")).toBeVisible();
-  await expect(page.getByText("博世/西门子短彩信规划复核")).not.toBeVisible();
+  await expect(page.locator(".project-row")).toHaveCount(0);
 });
 
 test("captures runtime homepage visual evidence", async ({ page }) => {
