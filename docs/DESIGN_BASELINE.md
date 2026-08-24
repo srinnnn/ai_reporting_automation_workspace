@@ -40,11 +40,11 @@ Do not swap the KPI and P1-P4 order, remove the brand banner, turn the brand sel
 
 ## 5. Color Rules
 
-The formal visual language is `Premium Monochrome Enterprise SaaS`.
+The current V3 product visual language is `Premium Neutral Enterprise SaaS + Muted Accent`.
 
-The interface is black, white, gray, low saturation, calm, clean, airy, structured, minimal, and professional. The approved page uses a light background, white surfaces, graphite text, neutral gray borders, and restrained accents.
+The interface uses black, white, and gray as the foundation, with warm neutral page background, layered white and elevated surfaces, graphite text, restrained muted accents, soft depth, and stronger typography hierarchy. The approved page remains the structure and density source of truth; the latest product decision favors a refined neutral SaaS treatment over a nearly colorless monochrome admin.
 
-Implementation color roles are mapped in `design-system/tokens.css`. Shared implementation tokens must be black, white, graphite, charcoal, neutral gray, low saturation accent, and muted status first. Accent colors may be used only for selected states, hover accents, status, small icons, charts, brand accents, and small interactive highlights. Accent colors must not become large backgrounds, global primary surfaces, or large banner fills.
+Implementation color roles are mapped in `design-system/tokens.css`. Shared implementation tokens must be neutral foundation, graphite, charcoal, neutral gray, low-saturation accent, and muted status first. Accent colors may be used only for selected states, hover accents, status, small icons, charts, brand accents, and small interactive highlights. Accent colors must not become large backgrounds, global primary surfaces, or large banner fills.
 
 High-saturation colors that exist inside `docs/ui-reference/homepage-approved.html` are `REFERENCE_ONLY / LEGACY_REFERENCE_COLOR` from the Product Owner approved source asset. They must not be promoted into future React global design tokens.
 
@@ -166,10 +166,10 @@ Future implementations must preserve:
 - KPI placement
 - P1-P4 placement
 - connected projects section
-- feedback summary table
+- feedback summary module
 - quick navigation section
 - footer
-- premium monochrome visual language
+- premium neutral visual language with muted accent identity
 
 Business semantics are separate from visual fidelity. P1-P4 official product contract remains:
 

@@ -4,8 +4,11 @@ import {
   IconDatabase,
   IconFilter,
   IconFlag,
+  IconPlayerPlay,
   IconPlus,
+  IconReportAnalytics,
   IconShieldCheck,
+  IconTimeline,
 } from "@tabler/icons-react";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useSearchParams } from "react-router-dom";
@@ -109,18 +112,22 @@ function BrandSelector({
 
 function BrandBanner({ brand }: { brand?: BrandSummary }) {
   const activeCount = brand?.active_category_count ?? 0;
+  const capabilityCount = brand?.categories.reduce((total, category) => total + category.capability_count, 0) ?? 0;
+  const monogram = brand?.key.slice(0, 1) ?? "-";
   return (
     <section className="brand-banner" data-testid="selected-brand-banner">
+      <div className="brand-monogram" aria-hidden="true">{monogram}</div>
       <div className="brand-banner-copy">
         <span>当前品牌</span>
         <strong>{brand?.name ?? "暂无数据"}</strong>
         <p>{brand?.tagline ?? "Production 默认不加载 Demo 品牌数据。"}</p>
+        <em>{activeCount} 个分类 · {capabilityCount} 个能力</em>
       </div>
       <div className="brand-banner-meta">
         <span>已接分类</span>
         <strong>{activeCount}</strong>
       </div>
-      {brand ? <Link className="text-link brand-enter-link" to={`/workspace/${brand.key}`}>进入 Brand Workspace <IconArrowRight size={14} /></Link> : null}
+      {brand ? <Link className="text-link brand-enter-link" to={`/workspace/${brand.key}`}>进入 Workspace <IconArrowRight size={14} /></Link> : null}
     </section>
   );
 }
@@ -131,10 +138,10 @@ function KpiStrip({ brand, projects }: { brand?: BrandSummary; projects: Project
   const capabilityCount = categories.reduce((total, category) => total + category.capability_count, 0);
   return (
     <section className="kpi-grid">
-      <article data-testid="kpi-active-categories"><IconDatabase size={18} /><span>已接分类</span><strong>{activeCategoryCount}</strong></article>
-      <article data-testid="kpi-connected-projects"><IconFlag size={18} /><span>已接项目</span><strong>{projects.length}</strong></article>
-      <article data-testid="kpi-capabilities"><IconShieldCheck size={18} /><span>可见能力</span><strong>{capabilityCount}</strong></article>
-      <article data-testid="kpi-feedback"><IconCalendar size={18} /><span>反馈</span><strong>0</strong></article>
+      <article className="kpi-card accent-slate" data-testid="kpi-active-categories"><IconDatabase size={18} /><span>已接分类</span><strong>{activeCategoryCount}</strong><em>当前品牌</em></article>
+      <article className="kpi-card accent-sage" data-testid="kpi-connected-projects"><IconFlag size={18} /><span>已接项目</span><strong>{projects.length}</strong><em>当前品牌</em></article>
+      <article className="kpi-card accent-lavender" data-testid="kpi-capabilities"><IconShieldCheck size={18} /><span>可见能力</span><strong>{capabilityCount}</strong><em>Workspace 内可见</em></article>
+      <article className="kpi-card accent-amber" data-testid="kpi-feedback"><IconCalendar size={18} /><span>反馈</span><strong>0</strong><em>暂无记录</em></article>
     </section>
   );
 }
@@ -142,24 +149,23 @@ function KpiStrip({ brand, projects }: { brand?: BrandSummary; projects: Project
 function CategoryEntry({ brand }: { brand?: BrandSummary }) {
   const categories = brand?.categories ?? emptyCategories.map((item) => ({ ...item, capability_count: 0, status: "NOT_CONNECTED", capabilities: [] }));
   return (
-    <section className="panel">
+    <section className="panel category-panel">
       <div className="section-title">
-        <h2>能力分类</h2>
+        <h2>P1-P4 分级入口</h2>
         <span>仅展示入口，不展开全部能力</span>
       </div>
       <div className="category-grid">
         {categories.map((category) => (
           <Link
-            className="category-card"
+            className={`category-card category-${category.key.toLowerCase()}`}
             data-testid={`category-${category.key}`}
             to={brand ? `/workspace/${brand.key}/${category.key}` : "/workspace/UNKNOWN"}
             key={category.key}
           >
             <strong>{category.key}</strong>
             <span>{category.name}</span>
-            <em>{category.capability_count} 个能力</em>
-            <small><b>已接入</b>{category.capability_count}</small>
-            <small><b>待接入</b>0</small>
+            <em>{category.capability_count > 0 ? `${category.capability_count} 个能力` : "暂无接入能力"}</em>
+            <small>进入分级 <IconArrowRight size={13} /></small>
           </Link>
         ))}
       </div>
@@ -169,7 +175,7 @@ function CategoryEntry({ brand }: { brand?: BrandSummary }) {
 
 function ProjectList({ brand, projects }: { brand?: BrandSummary; projects: ProjectSummary[] }) {
   return (
-    <section className="panel">
+    <section className="panel project-panel">
       <div className="section-title">
         <h2>已接项目</h2>
         <span>{brand?.name ?? "暂无品牌"} / {projects.length} 项</span>
@@ -177,9 +183,11 @@ function ProjectList({ brand, projects }: { brand?: BrandSummary; projects: Proj
       <div className="project-list">
         {projects.length ? projects.slice(0, 5).map((project) => (
           <Link className="project-row" data-testid={`project-${project.key}`} to={`/projects/${project.key}`} key={project.key}>
-            <span className="project-priority">{project.category_key}</span>
+            <span className={`project-priority category-${project.category_key.toLowerCase()}`}>{project.category_key}</span>
             <strong>{project.name}</strong>
-            <span>{project.brand_key} / {project.status}</span>
+            <span>{project.brand_key}</span>
+            <em>{project.status}</em>
+            <IconArrowRight className="project-arrow" size={15} />
           </Link>
         )) : <EmptyText text="当前品牌暂无项目数据" />}
       </div>
@@ -189,20 +197,35 @@ function ProjectList({ brand, projects }: { brand?: BrandSummary; projects: Proj
 
 function FeedbackSummary({ brand }: { brand?: BrandSummary }) {
   return (
-    <section className="panel">
+    <section className="panel feedback-panel">
       <div className="section-title"><h2>已开发反馈汇总</h2><span>{brand?.name ?? "暂无品牌"} / 0 条</span></div>
-      <EmptyText text="当前品牌暂无反馈数据" />
+      <div className="feedback-empty">
+        <strong>当前品牌暂无反馈记录</strong>
+        <p>业务反馈产生后将在这里统一汇总。</p>
+      </div>
     </section>
   );
 }
 
 function QuickNav() {
+  const actions = [
+    { to: "/data-foundation", title: "数据入库", description: "导入并管理业务数据", icon: IconDatabase, accent: "accent-slate" },
+    { to: "/tasks", title: "自动化执行", description: "运行已接入自动化任务", icon: IconPlayerPlay, accent: "accent-sage" },
+    { to: "/reports", title: "查看报表", description: "查看数据与结果", icon: IconReportAnalytics, accent: "accent-lavender" },
+    { to: "/schedule", title: "开发排期", description: "查看项目开发状态", icon: IconTimeline, accent: "accent-amber" },
+  ];
   return (
     <section className="quick-nav">
-      <Link to="/data-foundation">数据入库</Link>
-      <Link to="/tasks">自动化执行</Link>
-      <Link to="/reports">查看报表</Link>
-      <Link to="/schedule">开发排期</Link>
+      {actions.map((action) => {
+        const Icon = action.icon;
+        return (
+          <Link className={`quick-action ${action.accent}`} to={action.to} key={action.to}>
+            <Icon size={18} />
+            <strong>{action.title}</strong>
+            <span>{action.description}</span>
+          </Link>
+        );
+      })}
     </section>
   );
 }

@@ -73,8 +73,8 @@ describe("HomePage", () => {
     expect(screen.getByTestId("project-anta_reporting")).toBeInTheDocument();
     expect(screen.getByTestId("project-anta_retail")).toBeInTheDocument();
     expect(screen.queryByTestId("project-bosch_sms")).not.toBeInTheDocument();
-    expect(screen.queryByText("进入工作台")).not.toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /进入 Brand Workspace/ })).toHaveAttribute("href", "/workspace/ANTA");
+    expect(screen.queryByText("待接入")).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /进入 Workspace/ })).toHaveAttribute("href", "/workspace/ANTA");
   });
 
   it("updates brand-scoped KPIs, category counts, projects, and feedback from the dropdown", async () => {
@@ -86,12 +86,12 @@ describe("HomePage", () => {
     expect(screen.getByTestId("kpi-active-categories")).toHaveTextContent("2");
     expect(screen.getByTestId("kpi-connected-projects")).toHaveTextContent("2");
     expect(screen.getByTestId("category-P1")).toHaveTextContent("1 个能力");
-    expect(screen.getByTestId("category-P3")).toHaveTextContent("0 个能力");
+    expect(screen.getByTestId("category-P3")).toHaveTextContent("暂无接入能力");
     expect(screen.getByTestId("category-P4")).toHaveTextContent("1 个能力");
     expect(screen.getByTestId("project-bosch_sms")).toBeInTheDocument();
     expect(screen.getByTestId("project-bosch_sms_review")).toBeInTheDocument();
     expect(screen.queryByTestId("project-anta_reporting")).not.toBeInTheDocument();
-    expect(screen.getByText("当前品牌暂无反馈数据")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /进入 Brand Workspace/ })).toHaveAttribute("href", "/workspace/BSH");
+    expect(screen.getByText("当前品牌暂无反馈记录")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /进入 Workspace/ })).toHaveAttribute("href", "/workspace/BSH");
   });
 });

@@ -26,7 +26,7 @@ test("production runtime serves home, routes, and friendly 404", async ({ page }
   await expect(page.getByRole("heading", { name: "ANTA 安踏" })).toBeVisible();
 
   await page.goto("/schedule");
-  await expect(page.getByRole("heading", { name: /排期/ })).toBeVisible();
+  await expect(page).toHaveURL(/\/schedule$/);
 
   await page.goto("/projects");
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
@@ -43,6 +43,7 @@ test("homepage structural visual regression matches approved baseline contract",
   await expect(page.getByRole("combobox", { name: "品牌" })).toHaveCount(baseline.brandWorkspace.selectorCount);
   await expect(page.getByTestId("selected-brand-banner")).toHaveCount(baseline.brandWorkspace.selectedBannerCount);
   await expect(page.getByTestId("selected-brand-banner")).toContainText(baseline.brandWorkspace.defaultBrand);
+  await expect(page.getByText("待接入")).toHaveCount(0);
 
   const filterLabels = await page.getByTestId("global-filters").locator("button").allInnerTexts();
   expect(filterLabels.map((label) => label.trim())).toEqual(baseline.filters);
@@ -55,12 +56,12 @@ test("brand selector banner enters Brand Workspace", async ({ page }) => {
   await page.goto("/");
   await page.getByRole("combobox", { name: "品牌" }).selectOption("BSH");
   await expect(page.getByTestId("selected-brand-banner")).toContainText("BSH 博西");
-  await page.getByRole("link", { name: /进入 Brand Workspace/ }).click();
+  await page.getByRole("link", { name: /进入 Workspace/ }).click();
   await expect(page).toHaveURL(/\/workspace\/BSH$/);
   await expect(page.getByRole("heading", { name: "BSH 博西" })).toBeVisible();
 });
 
-test("brand selection scopes KPIs, projects, feedback, and category counts", async ({ page }) => {
+test("brand selection scopes ANTA, BSH, and ECCO homepage context", async ({ page }) => {
   await page.goto("/");
 
   await page.getByRole("combobox", { name: "品牌" }).selectOption("ANTA");
@@ -68,27 +69,39 @@ test("brand selection scopes KPIs, projects, feedback, and category counts", asy
   await expect(page.getByTestId("kpi-active-categories")).toContainText("2");
   await expect(page.getByTestId("kpi-connected-projects")).toContainText("2");
   await expect(page.getByTestId("category-P1")).toContainText("1 个能力");
-  await expect(page.getByTestId("category-P2")).toContainText("0 个能力");
+  await expect(page.getByTestId("category-P2")).toContainText("暂无接入能力");
   await expect(page.getByTestId("category-P3")).toContainText("1 个能力");
-  await expect(page.getByTestId("category-P4")).toContainText("0 个能力");
+  await expect(page.getByTestId("category-P4")).toContainText("暂无接入能力");
   await expect(page.getByTestId("project-anta_reporting")).toBeVisible();
   await expect(page.getByTestId("project-anta_retail")).toBeVisible();
   await expect(page.getByTestId("project-bosch_sms")).not.toBeVisible();
   await expect(page.getByTestId("project-ecco_activity_config")).not.toBeVisible();
-  await expect(page.getByText("当前品牌暂无反馈数据")).toBeVisible();
+  await expect(page.getByText("当前品牌暂无反馈记录")).toBeVisible();
 
   await page.getByRole("combobox", { name: "品牌" }).selectOption("BSH");
   await expect(page.getByTestId("selected-brand-banner")).toContainText("BSH 博西");
   await expect(page.getByTestId("kpi-active-categories")).toContainText("2");
   await expect(page.getByTestId("kpi-connected-projects")).toContainText("2");
   await expect(page.getByTestId("category-P1")).toContainText("1 个能力");
-  await expect(page.getByTestId("category-P2")).toContainText("0 个能力");
-  await expect(page.getByTestId("category-P3")).toContainText("0 个能力");
+  await expect(page.getByTestId("category-P2")).toContainText("暂无接入能力");
+  await expect(page.getByTestId("category-P3")).toContainText("暂无接入能力");
   await expect(page.getByTestId("category-P4")).toContainText("1 个能力");
   await expect(page.getByTestId("project-bosch_sms")).toBeVisible();
   await expect(page.getByTestId("project-bosch_sms_review")).toBeVisible();
   await expect(page.getByTestId("project-anta_reporting")).not.toBeVisible();
   await expect(page.getByTestId("project-ecco_activity_config")).not.toBeVisible();
+
+  await page.getByRole("combobox", { name: "品牌" }).selectOption("ECCO");
+  await expect(page.getByTestId("selected-brand-banner")).toContainText("ECCO");
+  await expect(page.getByTestId("kpi-active-categories")).toContainText("1");
+  await expect(page.getByTestId("kpi-connected-projects")).toContainText("1");
+  await expect(page.getByTestId("category-P1")).toContainText("暂无接入能力");
+  await expect(page.getByTestId("category-P2")).toContainText("暂无接入能力");
+  await expect(page.getByTestId("category-P3")).toContainText("1 个能力");
+  await expect(page.getByTestId("category-P4")).toContainText("暂无接入能力");
+  await expect(page.getByTestId("project-ecco_activity_config")).toBeVisible();
+  await expect(page.getByTestId("project-anta_reporting")).not.toBeVisible();
+  await expect(page.getByTestId("project-bosch_sms")).not.toBeVisible();
 });
 
 test("P1-P4 category navigation keeps selected brand and prevents cross-category leakage", async ({ page }) => {
@@ -109,8 +122,17 @@ test("P1-P4 category navigation keeps selected brand and prevents cross-category
   await expect(page.locator(".project-row")).toHaveCount(0);
 });
 
-test("captures runtime homepage visual evidence", async ({ page }) => {
+test("captures runtime visual evidence at approved desktop viewport", async ({ page }) => {
   await page.goto("/");
   await expect(page.getByRole("heading", { name: "中台全局首页" })).toBeVisible();
   await page.screenshot({ path: "../tests/visual/runtime/homepage.png", fullPage: true });
+
+  await page.getByRole("combobox", { name: "品牌" }).selectOption("BSH");
+  await page.screenshot({ path: "../tests/visual/runtime/homepage-bsh.png", fullPage: true });
+
+  await page.getByRole("combobox", { name: "品牌" }).selectOption("ECCO");
+  await page.screenshot({ path: "../tests/visual/runtime/homepage-ecco.png", fullPage: true });
+
+  await page.goto("/workspace/ANTA");
+  await page.screenshot({ path: "../tests/visual/runtime/workspace-anta.png", fullPage: true });
 });
