@@ -103,7 +103,7 @@ Hard rules for UI work:
 4. Reuse the shared UI design system in `docs/UI_DESIGN_SYSTEM.md`.
 5. Do not create one-off UI systems or brand-specific component variants.
 6. Any intentional major visual change requires Product Owner approval.
-7. Visual regression must pass before merge.
+7. Visual regression must pass before merge after a Playwright runtime baseline exists. Current Design Baseline V1.0 status is `VISUAL_REGRESSION = PARTIAL` and `RUNTIME_VISUAL_BASELINE = PENDING_REACT_MIGRATION`.
 8. Current style is `Premium Monochrome Enterprise SaaS`.
 9. Black, white, and gray come first.
 10. Low-saturation accents are allowed only for selected state, hover accent, status, small icons, charts, brand accent, and small interactive highlights.

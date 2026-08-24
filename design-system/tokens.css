@@ -3,40 +3,43 @@
 
   --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
 
-  --bg-page: #f5f7fa;
+  --bg-page: #f6f6f4;
   --bg-surface: #ffffff;
-  --bg-subtle: #f9fafb;
-  --bg-muted: #f3f4f6;
-  --bg-panel: #f8fafc;
-  --bg-panel-soft: #f1f5f9;
+  --bg-subtle: #f8f8f6;
+  --bg-muted: #f1f1ee;
+  --bg-panel: #f7f7f5;
+  --bg-panel-soft: #eeeeeb;
 
-  --text-primary: #1f2937;
-  --text-secondary: #4b5563;
-  --text-muted: #6b7280;
-  --text-subtle: #9ca3af;
+  --text-primary: #1e1e1c;
+  --text-secondary: #4a4a46;
+  --text-muted: #6b6b66;
+  --text-subtle: #92928e;
 
-  --border-default: #e8ecf1;
-  --border-control: #e5e7eb;
-  --border-strong: #d1d5db;
+  --border-default: #e4e4e0;
+  --border-control: #deded9;
+  --border-strong: #d0d0ca;
 
-  --accent-blue: #1e88e5;
-  --accent-blue-strong: #1565c0;
-  --accent-blue-hover: #1976d2;
-  --accent-blue-soft: #eff6ff;
-  --accent-blue-panel: #e3f2fd;
+  --accent-graphite: #343633;
+  --accent-charcoal: #454842;
+  --accent-slate-blue: #71829a;
+  --accent-slate-blue-soft: #eceff1;
 
-  --accent-sage: #6f8875;
-  --accent-teal: #00acc1;
+  --accent-sage: #819184;
+  --accent-teal: #78918e;
   --accent-sand: #a39179;
-  --accent-amber: #f59e0b;
+  --accent-amber: #a08763;
   --accent-rose: #9a7f82;
   --accent-lavender-gray: #8b8799;
 
-  --success: #22c55e;
-  --success-muted: #6f8875;
-  --warning: #f59e0b;
-  --danger: #ef4444;
-  --danger-muted: #9b6f6f;
+  --interactive-selected: var(--accent-slate-blue);
+  --interactive-hover: #ecefed;
+
+  --success: #6f8875;
+  --success-muted: #879987;
+  --warning: #a08763;
+  --danger: #9b6f6f;
+  --danger-muted: #a98c8c;
+  --info: #71829a;
 
   --radius-xs: 4px;
   --radius-sm: 6px;
@@ -58,7 +61,7 @@
   --topbar-height: 56px;
   --sidebar-width: 200px;
 
-  --shadow-sm: 0 1px 3px rgba(0, 0, 0, .08);
-  --shadow-md: 0 4px 16px rgba(0, 0, 0, .08);
-  --shadow-dropdown: 0 8px 24px rgba(0, 0, 0, .12);
+  --shadow-sm: 0 1px 3px rgba(30, 30, 28, .08);
+  --shadow-md: 0 4px 16px rgba(30, 30, 28, .08);
+  --shadow-dropdown: 0 8px 24px rgba(30, 30, 28, .12);
 }

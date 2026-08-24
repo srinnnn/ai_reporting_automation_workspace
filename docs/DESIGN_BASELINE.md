@@ -44,7 +44,9 @@ The formal visual language is `Premium Monochrome Enterprise SaaS`.
 
 The interface is black, white, gray, low saturation, calm, clean, airy, structured, minimal, and professional. The approved page uses a light background, white surfaces, graphite text, neutral gray borders, and restrained accents.
 
-Approved color roles are mapped in `design-system/tokens.css`. Accent colors may be used only for selected states, hover accents, status, small icons, charts, brand accents, and small interactive highlights. Accent colors must not become large backgrounds, global primary surfaces, or large banner fills.
+Implementation color roles are mapped in `design-system/tokens.css`. Shared implementation tokens must be black, white, graphite, charcoal, neutral gray, low saturation accent, and muted status first. Accent colors may be used only for selected states, hover accents, status, small icons, charts, brand accents, and small interactive highlights. Accent colors must not become large backgrounds, global primary surfaces, or large banner fills.
+
+High-saturation colors that exist inside `docs/ui-reference/homepage-approved.html` are `REFERENCE_ONLY / LEGACY_REFERENCE_COLOR` from the Product Owner approved source asset. They must not be promoted into future React global design tokens.
 
 Forbidden directions:
 
@@ -180,12 +182,17 @@ Approved HTML may contain demo text, but future product implementation must use 
 
 ## 14. Visual Regression Rules
 
+Current status:
+
+- `VISUAL_REGRESSION = PARTIAL`
+- `RUNTIME_VISUAL_BASELINE = PENDING_REACT_MIGRATION`
+
 Visual reference and runtime regression are separate:
 
 - Product design reference: `docs/ui-reference/homepage-approved.png`
-- Runtime regression baseline: `tests/visual/baseline/homepage.png`
+- Seeded reference only: `tests/visual/baseline/homepage.png`
 
-Current visual regression foundation is stored in `tests/visual/`. Future React/Vite migration must compare runtime screenshots against the baseline and block unapproved major visual changes.
+Current visual regression foundation is stored in `tests/visual/`, but it is not an operational regression gate yet. `tests/visual/baseline/homepage.png` is seeded from the Product Owner approved screenshot and must not be described as a true runtime baseline. Future React/Vite migration must generate a Playwright screenshot from `http://127.0.0.1:8785/`, confirm or replace the runtime baseline, and then block unapproved major visual changes.
 
 Allowed differences:
 
