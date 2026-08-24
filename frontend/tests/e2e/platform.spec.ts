@@ -90,6 +90,8 @@ test("brand selection scopes ANTA, BSH, and ECCO homepage context", async ({ pag
   await expect(page.getByTestId("selected-brand-banner")).toContainText("ANTA 安踏");
   await expect(page.getByTestId("kpi-active-categories")).toContainText("2");
   await expect(page.getByTestId("kpi-connected-projects")).toContainText("2");
+  await expect(page.getByTestId("kpi-feedback")).toContainText("未接入");
+  await expect(page.getByTestId("kpi-feedback")).not.toContainText("0");
   await expect(page.getByTestId("category-P1")).toContainText("1 个能力");
   await expect(page.getByTestId("category-P2")).toContainText("暂无接入能力");
   await expect(page.getByTestId("category-P3")).toContainText("1 个能力");
@@ -98,7 +100,7 @@ test("brand selection scopes ANTA, BSH, and ECCO homepage context", async ({ pag
   await expect(page.getByTestId("project-anta_retail")).toBeVisible();
   await expect(page.getByTestId("project-bosch_sms")).not.toBeVisible();
   await expect(page.getByTestId("project-ecco_activity_config")).not.toBeVisible();
-  await expect(page.getByTestId("developed-feedback")).toContainText("ANTA 安踏 / 0 条");
+  await expect(page.getByTestId("developed-feedback")).toContainText("ANTA 安踏 / 未接入");
   await expect(page.getByTestId("developed-feedback")).toContainText("当前品牌暂无反馈记录");
 
   await page.getByRole("combobox", { name: "品牌" }).selectOption("BSH");
@@ -113,7 +115,7 @@ test("brand selection scopes ANTA, BSH, and ECCO homepage context", async ({ pag
   await expect(page.getByTestId("project-bosch_sms_review")).toBeVisible();
   await expect(page.getByTestId("project-anta_reporting")).not.toBeVisible();
   await expect(page.getByTestId("project-ecco_activity_config")).not.toBeVisible();
-  await expect(page.getByTestId("developed-feedback")).toContainText("BSH 博西 / 0 条");
+  await expect(page.getByTestId("developed-feedback")).toContainText("BSH 博西 / 未接入");
   await expect(page.getByTestId("developed-feedback")).toContainText("当前品牌暂无反馈记录");
 
   await page.getByRole("combobox", { name: "品牌" }).selectOption("ECCO");
@@ -127,7 +129,7 @@ test("brand selection scopes ANTA, BSH, and ECCO homepage context", async ({ pag
   await expect(page.getByTestId("project-ecco_activity_config")).toBeVisible();
   await expect(page.getByTestId("project-anta_reporting")).not.toBeVisible();
   await expect(page.getByTestId("project-bosch_sms")).not.toBeVisible();
-  await expect(page.getByTestId("developed-feedback")).toContainText("ECCO / 0 条");
+  await expect(page.getByTestId("developed-feedback")).toContainText("ECCO / 未接入");
   await expect(page.getByTestId("developed-feedback")).toContainText("当前品牌暂无反馈记录");
 });
 
@@ -153,6 +155,7 @@ test("captures runtime visual evidence at approved desktop viewport", async ({ p
   await page.goto("/");
   await expect(page.getByRole("heading", { name: "中台全局首页" })).toBeVisible();
   await page.screenshot({ path: "../tests/visual/runtime/homepage.png", fullPage: true });
+  await page.screenshot({ path: "../tests/visual/runtime/homepage-anta.png", fullPage: true });
 
   await page.getByRole("combobox", { name: "品牌" }).selectOption("BSH");
   await page.screenshot({ path: "../tests/visual/runtime/homepage-bsh.png", fullPage: true });
