@@ -21,6 +21,13 @@ export default defineConfig({
     viewport: { width: 1440, height: 1000 },
   },
   projects: [
-    { name: "msedge", use: { ...devices["Desktop Edge"], channel: "msedge" } },
+    {
+      name: "msedge",
+      use: {
+        ...devices["Desktop Edge"],
+        viewport: { width: 1440, height: 1000 },
+        channel: "msedge",
+      },
+    },
   ],
 });

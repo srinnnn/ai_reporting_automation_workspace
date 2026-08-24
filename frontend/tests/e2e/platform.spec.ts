@@ -168,6 +168,8 @@ test("P1-P4 category navigation keeps selected brand and prevents cross-category
 });
 
 test("captures runtime visual evidence at approved desktop viewport", async ({ page }) => {
+  expect(page.viewportSize()).toEqual({ width: 1440, height: 1000 });
+
   await page.goto("/");
   await expect(page.getByRole("heading", { name: "中台全局首页" })).toBeVisible();
   await page.screenshot({ path: "../tests/visual/runtime/homepage.png", fullPage: true });
