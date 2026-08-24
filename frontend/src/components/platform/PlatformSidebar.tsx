@@ -1,5 +1,4 @@
 import {
-  IconArchive,
   IconChartBar,
   IconClock,
   IconDatabase,
@@ -22,9 +21,9 @@ const navItems: NavigationItem[] = [
   { to: "/workspace/ANTA", label: "品牌工作台", icon: IconLayoutGrid },
   { to: "/data-foundation", label: "数据入库中心", icon: IconDatabase },
   { to: "/tasks", label: "自动化执行", icon: IconPlayerPlay },
-  { to: "/projects", label: "投递资料", icon: IconArchive },
-  { to: "/schedule", label: "最近处理记录", icon: IconClock },
-  { to: "/reports", label: "数据分析报表", icon: IconChartBar },
+  { to: "/projects", label: "项目", icon: IconLayoutGrid },
+  { to: "/schedule", label: "开发排期", icon: IconClock },
+  { to: "/reports", label: "报表", icon: IconChartBar },
   { to: "/system", label: "系统设置", icon: IconSettings },
 ];
 

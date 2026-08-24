@@ -1,3 +1,4 @@
+import * as RadixTooltip from "@radix-ui/react-tooltip";
 import type { ReactNode } from "react";
 
 type TooltipProps = {
@@ -7,9 +8,16 @@ type TooltipProps = {
 
 export function Tooltip({ children, label }: TooltipProps) {
   return (
-    <span className="ui-tooltip" data-slot="tooltip">
-      <span data-slot="tooltip-trigger">{children}</span>
-      <span className="ui-tooltip-content" data-slot="tooltip-content" role="tooltip">{label}</span>
-    </span>
+    <RadixTooltip.Provider delayDuration={180}>
+      <RadixTooltip.Root>
+        <RadixTooltip.Trigger asChild>{children}</RadixTooltip.Trigger>
+        <RadixTooltip.Portal>
+          <RadixTooltip.Content className="ui-tooltip-content" data-slot="tooltip-content" role="tooltip" sideOffset={6}>
+            {label}
+            <RadixTooltip.Arrow className="ui-tooltip-arrow" />
+          </RadixTooltip.Content>
+        </RadixTooltip.Portal>
+      </RadixTooltip.Root>
+    </RadixTooltip.Provider>
   );
 }

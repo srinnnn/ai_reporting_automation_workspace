@@ -113,7 +113,7 @@ jobs:
         if: always()
         with:
           name: runtime-visual-homepage
-          path: tests/visual/runtime/homepage.png
+          path: tests/visual/runtime/*.png
 
   secret-scan:
     runs-on: ubuntu-latest

@@ -1,9 +1,10 @@
 import { IconCalendar } from "@tabler/icons-react";
-import { render, screen } from "@testing-library/react";
+import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { MemoryRouter } from "react-router-dom";
-import { describe, expect, it, vi } from "vitest";
+import { Link, MemoryRouter } from "react-router-dom";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { BrandSelector, CategoryCard, EmptyState, MetricCard } from ".";
+import { Button, Input, Tooltip } from "../ui";
 import type { BrandSummary, CategorySummary } from "../../types/platform";
 
 const brands: BrandSummary[] = [
@@ -32,13 +33,49 @@ const p4Category: CategorySummary = {
 };
 
 describe("platform homepage components", () => {
+  afterEach(() => {
+    cleanup();
+  });
+
   it("BrandSelector emits the selected brand key", async () => {
     const onSelect = vi.fn();
     render(<BrandSelector brands={brands} selectedBrand={brands[0]} onSelect={onSelect} />);
 
-    await userEvent.selectOptions(screen.getByRole("combobox", { name: "品牌" }), "BSH");
+    await userEvent.click(screen.getByRole("combobox", { name: "品牌" }));
+    await userEvent.click(screen.getByRole("option", { name: "BSH 博西" }));
 
     expect(onSelect).toHaveBeenCalledWith("BSH");
+  });
+
+  it("Button composes navigation with asChild", () => {
+    render(
+      <MemoryRouter>
+        <Button asChild>
+          <Link to="/tasks">新建任务</Link>
+        </Button>
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByRole("link", { name: "新建任务" })).toHaveAttribute("href", "/tasks");
+  });
+
+  it("Tooltip exposes accessible content on hover", async () => {
+    render(
+      <Tooltip label="通知暂未接入">
+        <button type="button">通知</button>
+      </Tooltip>,
+    );
+
+    await userEvent.hover(screen.getByRole("button", { name: "通知" }));
+
+    expect(await screen.findByRole("tooltip")).toHaveTextContent("通知暂未接入");
+  });
+
+  it("Input supports disabled search placeholder state", () => {
+    render(<Input aria-label="搜索暂未接入" disabled placeholder="搜索暂未接入" />);
+
+    expect(screen.getByRole("textbox", { name: "搜索暂未接入" })).toBeDisabled();
+    expect(screen.getByPlaceholderText("搜索暂未接入")).toBeInTheDocument();
   });
 
   it("MetricCard renders non-numeric feedback state", () => {

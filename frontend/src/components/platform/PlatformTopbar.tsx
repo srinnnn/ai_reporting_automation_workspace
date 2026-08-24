@@ -1,5 +1,6 @@
 import { IconBell, IconMenu2, IconSearch } from "@tabler/icons-react";
-import { Button, Tooltip } from "../ui";
+import { Link } from "react-router-dom";
+import { Button, Input, Tooltip } from "../ui";
 
 export function PlatformTopbar() {
   return (
@@ -9,13 +10,17 @@ export function PlatformTopbar() {
         <span>中台管理平台</span>
       </div>
       <div className="topbar-actions">
-        <Button>全域项目</Button>
+        <Button asChild>
+          <Link to="/projects">全域项目</Link>
+        </Button>
         <label className="topbar-search">
           <IconSearch size={15} />
-          <input placeholder="搜索项目、品牌或功能..." />
+          <Input aria-label="搜索暂未接入" disabled placeholder="搜索暂未接入" />
         </label>
-        <Tooltip label="通知">
-          <Button aria-label="通知" size="icon"><IconBell size={16} /></Button>
+        <Tooltip label="通知暂未接入">
+          <span>
+            <Button aria-label="通知暂未接入" disabled size="icon"><IconBell size={16} /></Button>
+          </span>
         </Tooltip>
       </div>
       <strong>Middle Platform V3</strong>

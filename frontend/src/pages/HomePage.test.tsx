@@ -55,6 +55,11 @@ function renderHome() {
   );
 }
 
+async function selectBrand(label: string) {
+  await userEvent.click(await screen.findByRole("combobox", { name: "品牌" }));
+  await userEvent.click(await screen.findByRole("option", { name: label }));
+}
+
 describe("HomePage", () => {
   afterEach(() => {
     cleanup();
@@ -66,7 +71,7 @@ describe("HomePage", () => {
 
     expect(await screen.findByRole("heading", { name: "中台全局首页" })).toBeInTheDocument();
     expect(screen.getByTestId("global-filters")).toHaveTextContent("项目品牌优先级状态");
-    expect(await screen.findByRole("combobox", { name: "品牌" })).toHaveValue("ANTA");
+    expect(await screen.findByRole("combobox", { name: "品牌" })).toHaveTextContent("ANTA 安踏");
     expect(screen.getAllByTestId("selected-brand-banner")).toHaveLength(1);
     expect(screen.getByTestId("kpi-active-categories")).toHaveTextContent("2");
     expect(screen.getByTestId("kpi-connected-projects")).toHaveTextContent("2");
@@ -80,7 +85,7 @@ describe("HomePage", () => {
   it("updates brand-scoped KPIs, category counts, projects, and feedback from the dropdown", async () => {
     renderHome();
 
-    await userEvent.selectOptions(await screen.findByRole("combobox", { name: "品牌" }), "BSH");
+    await selectBrand("BSH 博西");
 
     expect(screen.getByTestId("selected-brand-banner")).toHaveTextContent("BSH 博西");
     expect(screen.getByTestId("kpi-active-categories")).toHaveTextContent("2");

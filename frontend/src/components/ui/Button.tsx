@@ -1,4 +1,5 @@
-import { cloneElement, forwardRef, isValidElement, type ButtonHTMLAttributes, type ReactElement } from "react";
+import { Slot } from "@radix-ui/react-slot";
+import { forwardRef, type ButtonHTMLAttributes } from "react";
 import { cn } from "./utils";
 
 type ButtonVariant = "default" | "primary";
@@ -23,19 +24,21 @@ export function buttonVariants({
 }
 
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button(
-  { asChild = false, children, className, size, type = "button", variant, ...props },
+  { asChild = false, children, className, disabled, size, type = "button", variant, ...props },
   ref,
 ) {
-  if (asChild && isValidElement(children)) {
-    const child = children as ReactElement<{ className?: string }>;
-    return cloneElement(child, {
-      className: buttonVariants({ className: cn(child.props.className, className), size, variant }),
-    });
-  }
-
+  const Component = asChild ? Slot : "button";
   return (
-    <button ref={ref} className={buttonVariants({ className, size, variant })} data-slot="button" type={type} {...props}>
+    <Component
+      ref={ref}
+      className={buttonVariants({ className, size, variant })}
+      data-disabled={disabled ? "true" : undefined}
+      data-slot="button"
+      disabled={asChild ? undefined : disabled}
+      type={asChild ? undefined : type}
+      {...props}
+    >
       {children}
-    </button>
+    </Component>
   );
 });

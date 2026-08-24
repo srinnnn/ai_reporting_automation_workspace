@@ -21,6 +21,11 @@ const HOMEPAGE_BASELINE = JSON.parse(
   readFileSync(new URL("../../../tests/visual/baseline/homepage-structure.json", import.meta.url), "utf-8"),
 ) as HomepageStructureBaseline;
 
+async function selectBrand(page: import("@playwright/test").Page, optionName: string) {
+  await page.getByRole("combobox", { name: "品牌" }).click();
+  await page.getByRole("option", { name: optionName }).click();
+}
+
 test("production runtime serves home, routes, and friendly 404", async ({ page }) => {
   await page.goto("/");
   await expect(page.getByRole("heading", { name: "中台全局首页" })).toBeVisible();
@@ -43,8 +48,19 @@ test("homepage structural visual regression matches approved baseline contract",
   const baseline = HOMEPAGE_BASELINE;
   await page.goto("/");
 
-  await expect(page.locator(".sidebar")).toBeVisible();
+  const sidebar = page.locator(".sidebar");
+  await expect(sidebar).toBeVisible();
+  await expect(sidebar.getByRole("link", { name: "项目" })).toBeVisible();
+  await expect(sidebar.getByRole("link", { name: "开发排期" })).toBeVisible();
+  await expect(sidebar.getByRole("link", { name: "投递资料" })).toHaveCount(0);
+  await expect(sidebar.getByRole("link", { name: "最近处理记录" })).toHaveCount(0);
   await expect(page.locator(".topbar")).toBeVisible();
+  await expect(page.locator(".topbar").getByRole("link", { name: "全域项目" })).toHaveAttribute("href", "/projects");
+  await expect(page.locator(".topbar").getByRole("textbox", { name: "搜索暂未接入" })).toBeDisabled();
+  await expect(page.locator(".topbar").getByRole("button", { name: "通知暂未接入" })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "今天" })).toHaveCount(0);
+  await expect(page.locator("time.date-chip")).toContainText("今天");
+  await expect(page.getByRole("link", { name: /新建任务/ })).toHaveAttribute("href", "/tasks");
   await expect(page.locator(".brand-card")).toHaveCount(baseline.brandWorkspace.flatBrandCardCount);
   await expect(page.getByRole("combobox", { name: "品牌" })).toHaveCount(baseline.brandWorkspace.selectorCount);
   await expect(page.getByTestId("selected-brand-banner")).toHaveCount(baseline.brandWorkspace.selectedBannerCount);
@@ -76,7 +92,7 @@ test("homepage structural visual regression matches approved baseline contract",
 
 test("brand selector banner enters Brand Workspace", async ({ page }) => {
   await page.goto("/");
-  await page.getByRole("combobox", { name: "品牌" }).selectOption("BSH");
+  await selectBrand(page, "BSH 博西");
   await expect(page.getByTestId("selected-brand-banner")).toContainText("BSH 博西");
   await page.getByRole("link", { name: /进入 Workspace/ }).click();
   await expect(page).toHaveURL(/\/workspace\/BSH$/);
@@ -86,7 +102,7 @@ test("brand selector banner enters Brand Workspace", async ({ page }) => {
 test("brand selection scopes ANTA, BSH, and ECCO homepage context", async ({ page }) => {
   await page.goto("/");
 
-  await page.getByRole("combobox", { name: "品牌" }).selectOption("ANTA");
+  await selectBrand(page, "ANTA 安踏");
   await expect(page.getByTestId("selected-brand-banner")).toContainText("ANTA 安踏");
   await expect(page.getByTestId("kpi-active-categories")).toContainText("2");
   await expect(page.getByTestId("kpi-connected-projects")).toContainText("2");
@@ -103,7 +119,7 @@ test("brand selection scopes ANTA, BSH, and ECCO homepage context", async ({ pag
   await expect(page.getByTestId("developed-feedback")).toContainText("ANTA 安踏 / 未接入");
   await expect(page.getByTestId("developed-feedback")).toContainText("当前品牌暂无反馈记录");
 
-  await page.getByRole("combobox", { name: "品牌" }).selectOption("BSH");
+  await selectBrand(page, "BSH 博西");
   await expect(page.getByTestId("selected-brand-banner")).toContainText("BSH 博西");
   await expect(page.getByTestId("kpi-active-categories")).toContainText("2");
   await expect(page.getByTestId("kpi-connected-projects")).toContainText("2");
@@ -118,7 +134,7 @@ test("brand selection scopes ANTA, BSH, and ECCO homepage context", async ({ pag
   await expect(page.getByTestId("developed-feedback")).toContainText("BSH 博西 / 未接入");
   await expect(page.getByTestId("developed-feedback")).toContainText("当前品牌暂无反馈记录");
 
-  await page.getByRole("combobox", { name: "品牌" }).selectOption("ECCO");
+  await selectBrand(page, "ECCO");
   await expect(page.getByTestId("selected-brand-banner")).toContainText("ECCO");
   await expect(page.getByTestId("kpi-active-categories")).toContainText("1");
   await expect(page.getByTestId("kpi-connected-projects")).toContainText("1");
@@ -157,10 +173,10 @@ test("captures runtime visual evidence at approved desktop viewport", async ({ p
   await page.screenshot({ path: "../tests/visual/runtime/homepage.png", fullPage: true });
   await page.screenshot({ path: "../tests/visual/runtime/homepage-anta.png", fullPage: true });
 
-  await page.getByRole("combobox", { name: "品牌" }).selectOption("BSH");
+  await selectBrand(page, "BSH 博西");
   await page.screenshot({ path: "../tests/visual/runtime/homepage-bsh.png", fullPage: true });
 
-  await page.getByRole("combobox", { name: "品牌" }).selectOption("ECCO");
+  await selectBrand(page, "ECCO");
   await page.screenshot({ path: "../tests/visual/runtime/homepage-ecco.png", fullPage: true });
 
   await page.goto("/workspace/ANTA");

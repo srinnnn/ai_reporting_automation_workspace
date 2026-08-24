@@ -53,13 +53,13 @@ export function BrandSelector({ brands, onSelect, selectedBrand }: BrandSelector
     <>
       <label className="brand-select-label" htmlFor="brand-selector">品牌</label>
       <Select
+        ariaLabel="品牌"
         id="brand-selector"
         className="brand-select"
+        options={brands.map((brand) => ({ label: brand.name, value: brand.key }))}
         value={selectedBrand?.key ?? brands[0]?.key ?? ""}
-        onChange={(event) => onSelect(event.target.value)}
-      >
-        {brands.map((brand) => <option value={brand.key} key={brand.key}>{brand.name}</option>)}
-      </Select>
+        onValueChange={onSelect}
+      />
     </>
   );
 }
