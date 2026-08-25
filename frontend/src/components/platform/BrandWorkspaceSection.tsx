@@ -11,20 +11,14 @@ type BrandSelectorProps = {
 };
 
 type BrandWorkspaceSectionProps = BrandSelectorProps & {
-  activeCategoryCount: number;
-  capabilityCount: number;
 };
 
 type BrandBannerProps = {
-  activeCategoryCount: number;
   brand?: BrandSummary;
-  capabilityCount: number;
 };
 
 export function BrandWorkspaceSection({
-  activeCategoryCount,
   brands,
-  capabilityCount,
   onSelect,
   selectedBrand,
 }: BrandWorkspaceSectionProps) {
@@ -37,11 +31,7 @@ export function BrandWorkspaceSection({
       {brands.length ? (
         <>
           <BrandSelector brands={brands} selectedBrand={selectedBrand} onSelect={onSelect} />
-          <BrandBanner
-            activeCategoryCount={activeCategoryCount}
-            brand={selectedBrand ?? brands[0]}
-            capabilityCount={capabilityCount}
-          />
+          <BrandBanner brand={selectedBrand ?? brands[0]} />
         </>
       ) : <EmptyState text="暂无品牌数据" />}
     </Card>
@@ -53,7 +43,7 @@ export function BrandSelector({ brands, onSelect, selectedBrand }: BrandSelector
     <>
       <label className="brand-select-label" htmlFor="brand-selector">品牌</label>
       <Select
-        ariaLabel="品牌"
+        ariaLabel="选择品牌 Workspace"
         id="brand-selector"
         className="brand-select"
         options={brands.map((brand) => ({ label: brand.name, value: brand.key }))}
@@ -64,7 +54,7 @@ export function BrandSelector({ brands, onSelect, selectedBrand }: BrandSelector
   );
 }
 
-export function BrandBanner({ activeCategoryCount, brand, capabilityCount }: BrandBannerProps) {
+export function BrandBanner({ brand }: BrandBannerProps) {
   const monogram = brand?.key.slice(0, 1) ?? "-";
   return (
     <section className="brand-banner" data-testid="selected-brand-banner">
@@ -73,11 +63,7 @@ export function BrandBanner({ activeCategoryCount, brand, capabilityCount }: Bra
         <span>当前品牌</span>
         <strong>{brand?.name ?? "暂无数据"}</strong>
         <p>{brand?.tagline ?? "Production 默认不加载 Demo 品牌数据。"}</p>
-        <em>{activeCategoryCount} 个分类 · {capabilityCount} 个能力</em>
-      </div>
-      <div className="brand-banner-meta">
-        <span>已接分类</span>
-        <strong>{activeCategoryCount}</strong>
+        <em>进入单品牌开发工作台</em>
       </div>
       {brand ? (
         <Button asChild>

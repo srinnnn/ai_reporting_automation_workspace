@@ -55,8 +55,8 @@ function renderHome() {
   );
 }
 
-async function selectBrand(label: string) {
-  await userEvent.click(await screen.findByRole("combobox", { name: "品牌" }));
+async function selectOption(controlName: string, label: string) {
+  await userEvent.click(await screen.findByRole("combobox", { name: controlName }));
   await userEvent.click(await screen.findByRole("option", { name: label }));
 }
 
@@ -70,33 +70,64 @@ describe("HomePage", () => {
     renderHome();
 
     expect(await screen.findByRole("heading", { name: "中台全局首页" })).toBeInTheDocument();
-    expect(screen.getByTestId("global-filters")).toHaveTextContent("项目品牌优先级状态");
-    expect(await screen.findByRole("combobox", { name: "品牌" })).toHaveTextContent("ANTA 安踏");
+    expect(screen.getByRole("combobox", { name: "项目" })).toHaveTextContent("全部项目");
+    expect(screen.getByRole("combobox", { name: "品牌" })).toHaveTextContent("全部品牌");
+    expect(screen.getByRole("combobox", { name: "P分类" })).toHaveTextContent("全部分类");
+    expect(screen.getByRole("combobox", { name: "状态" })).toHaveTextContent("全部状态");
+    expect(await screen.findByRole("combobox", { name: "选择品牌 Workspace" })).toHaveTextContent("ANTA 安踏");
     expect(screen.getAllByTestId("selected-brand-banner")).toHaveLength(1);
-    expect(screen.getByTestId("kpi-active-categories")).toHaveTextContent("2");
-    expect(screen.getByTestId("kpi-connected-projects")).toHaveTextContent("2");
+    expect(screen.getByTestId("kpi-brand-count")).toHaveTextContent("2");
+    expect(screen.getByTestId("kpi-active-categories")).toHaveTextContent("3");
+    expect(screen.getByTestId("kpi-connected-projects")).toHaveTextContent("4");
     expect(screen.getByTestId("project-anta_reporting")).toBeInTheDocument();
     expect(screen.getByTestId("project-anta_retail")).toBeInTheDocument();
-    expect(screen.queryByTestId("project-bosch_sms")).not.toBeInTheDocument();
+    expect(screen.getByTestId("project-bosch_sms")).toBeInTheDocument();
+    expect(screen.getByTestId("project-bosch_sms_review")).toBeInTheDocument();
     expect(screen.queryByText("待接入")).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: /进入 Workspace/ })).toHaveAttribute("href", "/workspace/ANTA");
+    expect(screen.getByTestId("developed-feedback")).toHaveTextContent("全部品牌 / 未接入");
+    expect(screen.getByText("当前暂无已接入的开发反馈数据")).toBeInTheDocument();
   });
 
-  it("updates brand-scoped KPIs, category counts, projects, and feedback from the dropdown", async () => {
+  it("keeps global dashboard data unchanged when the Workspace Entry selector changes", async () => {
     renderHome();
 
-    await selectBrand("BSH 博西");
+    await selectOption("选择品牌 Workspace", "BSH 博西");
 
     expect(screen.getByTestId("selected-brand-banner")).toHaveTextContent("BSH 博西");
+    expect(screen.getByTestId("kpi-brand-count")).toHaveTextContent("2");
+    expect(screen.getByTestId("kpi-active-categories")).toHaveTextContent("3");
+    expect(screen.getByTestId("kpi-connected-projects")).toHaveTextContent("4");
+    expect(screen.getByTestId("category-P1")).toHaveTextContent("2 个能力");
+    expect(screen.getByTestId("category-P3")).toHaveTextContent("1 个能力");
+    expect(screen.getByTestId("category-P4")).toHaveTextContent("1 个能力");
+    expect(screen.getByTestId("project-anta_reporting")).toBeInTheDocument();
+    expect(screen.getByTestId("project-anta_retail")).toBeInTheDocument();
+    expect(screen.getByTestId("project-bosch_sms")).toBeInTheDocument();
+    expect(screen.getByTestId("project-bosch_sms_review")).toBeInTheDocument();
+    expect(screen.getByTestId("developed-feedback")).toHaveTextContent("全部品牌 / 未接入");
+    expect(screen.getByRole("link", { name: /进入 Workspace/ })).toHaveAttribute("href", "/workspace/BSH");
+  });
+
+  it("scopes global dashboard data only from the Global Brand Filter", async () => {
+    renderHome();
+
+    await selectOption("选择品牌 Workspace", "BSH 博西");
+    await selectOption("品牌", "ANTA 安踏");
+
+    expect(screen.getByTestId("selected-brand-banner")).toHaveTextContent("BSH 博西");
+    expect(screen.getByRole("link", { name: /进入 Workspace/ })).toHaveAttribute("href", "/workspace/BSH");
+    expect(screen.getByTestId("kpi-brand-count")).toHaveTextContent("1");
     expect(screen.getByTestId("kpi-active-categories")).toHaveTextContent("2");
     expect(screen.getByTestId("kpi-connected-projects")).toHaveTextContent("2");
     expect(screen.getByTestId("category-P1")).toHaveTextContent("1 个能力");
-    expect(screen.getByTestId("category-P3")).toHaveTextContent("暂无接入能力");
-    expect(screen.getByTestId("category-P4")).toHaveTextContent("1 个能力");
-    expect(screen.getByTestId("project-bosch_sms")).toBeInTheDocument();
-    expect(screen.getByTestId("project-bosch_sms_review")).toBeInTheDocument();
-    expect(screen.queryByTestId("project-anta_reporting")).not.toBeInTheDocument();
-    expect(screen.getByText("当前品牌暂无反馈记录")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /进入 Workspace/ })).toHaveAttribute("href", "/workspace/BSH");
+    expect(screen.getByTestId("category-P2")).toHaveTextContent("暂无接入能力");
+    expect(screen.getByTestId("category-P3")).toHaveTextContent("1 个能力");
+    expect(screen.getByTestId("category-P4")).toHaveTextContent("暂无接入能力");
+    expect(screen.getByTestId("project-anta_reporting")).toBeInTheDocument();
+    expect(screen.getByTestId("project-anta_retail")).toBeInTheDocument();
+    expect(screen.queryByTestId("project-bosch_sms")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("project-bosch_sms_review")).not.toBeInTheDocument();
+    expect(screen.getByTestId("developed-feedback")).toHaveTextContent("ANTA 安踏 / 未接入");
   });
 });

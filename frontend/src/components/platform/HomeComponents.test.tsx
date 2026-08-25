@@ -41,7 +41,7 @@ describe("platform homepage components", () => {
     const onSelect = vi.fn();
     render(<BrandSelector brands={brands} selectedBrand={brands[0]} onSelect={onSelect} />);
 
-    await userEvent.click(screen.getByRole("combobox", { name: "品牌" }));
+    await userEvent.click(screen.getByRole("combobox", { name: "选择品牌 Workspace" }));
     await userEvent.click(screen.getByRole("option", { name: "BSH 博西" }));
 
     expect(onSelect).toHaveBeenCalledWith("BSH");

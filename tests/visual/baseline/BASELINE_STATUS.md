@@ -10,10 +10,12 @@ Current status:
 | --- | --- | --- |
 | `/` | `homepage.png` | SEEDED_REFERENCE_ONLY |
 | `/` | `homepage-structure.json` | STRUCTURAL_REGRESSION_READY |
-| `/` | `../runtime/homepage.png` | RUNTIME_SCREENSHOT_EVIDENCE |
-| `/?brand=BSH` | `../runtime/homepage-bsh.png` | RUNTIME_SCREENSHOT_EVIDENCE |
-| `/?brand=ECCO` | `../runtime/homepage-ecco.png` | RUNTIME_SCREENSHOT_EVIDENCE |
+| `/` | `../runtime/homepage-global.png` | RUNTIME_SCREENSHOT_EVIDENCE |
+| `/` Workspace Entry ANTA | `../runtime/homepage-workspace-entry-anta.png` | RUNTIME_SCREENSHOT_EVIDENCE |
+| `/` Workspace Entry ECCO | `../runtime/homepage-workspace-entry-ecco.png` | RUNTIME_SCREENSHOT_EVIDENCE |
 | `/workspace/ANTA` | `../runtime/workspace-anta.png` | RUNTIME_SCREENSHOT_EVIDENCE |
+| `/workspace/ECCO` | `../runtime/workspace-ecco.png` | RUNTIME_SCREENSHOT_EVIDENCE |
+| `/workspace/BSH` | `../runtime/workspace-bsh.png` | RUNTIME_SCREENSHOT_EVIDENCE |
 | `/workspace/ANTA` | pending | BASELINE_PENDING |
 | `/workspace/ANTA/P1` | pending | BASELINE_PENDING |
 | `/schedule` | pending | BASELINE_PENDING |
