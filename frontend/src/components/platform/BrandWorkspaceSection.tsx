@@ -1,8 +1,9 @@
 import { IconArrowRight } from "@tabler/icons-react";
 import { Link } from "react-router-dom";
 import type { BrandSummary } from "../../types/platform";
-import { Button, Card, Select } from "../ui";
+import { Badge, Button, Card, Select } from "../ui";
 import { EmptyState } from "./EmptyState";
+import { platformIcons } from "./iconSemantics";
 
 type BrandSelectorProps = {
   brands: BrandSummary[];
@@ -46,6 +47,7 @@ export function BrandSelector({ brands, onSelect, selectedBrand }: BrandSelector
         ariaLabel="选择品牌 Workspace"
         id="brand-selector"
         className="brand-select"
+        leadingIcon={platformIcons.brandWorkspace}
         options={brands.map((brand) => ({ label: brand.name, value: brand.key }))}
         value={selectedBrand?.key ?? brands[0]?.key ?? ""}
         onValueChange={onSelect}
@@ -60,7 +62,7 @@ export function BrandBanner({ brand }: BrandBannerProps) {
     <section className="brand-banner" data-testid="selected-brand-banner">
       <div className="brand-monogram" aria-hidden="true">{monogram}</div>
       <div className="brand-banner-copy">
-        <span>当前品牌</span>
+        <Badge className="metadata-badge">当前品牌</Badge>
         <strong>{brand?.name ?? "暂无数据"}</strong>
         <p>{brand?.tagline ?? "Production 默认不加载 Demo 品牌数据。"}</p>
         <em>进入单品牌开发工作台</em>

@@ -1,6 +1,8 @@
-import { IconArrowRight } from "@tabler/icons-react";
 import { Link } from "react-router-dom";
 import type { BrandSummary, CategorySummary } from "../../types/platform";
+import { Badge } from "../ui";
+import { IconTile } from "./IconTile";
+import { categoryIcons, platformIcons } from "./iconSemantics";
 
 type CategoryGridProps = {
   brand?: BrandSummary;
@@ -33,12 +35,19 @@ export function CategoryGrid({
 }
 
 export function CategoryCard({ brand, category }: { brand?: BrandSummary; category: CategorySummary }) {
+  const categoryIconMap = categoryIcons as Record<string, typeof platformIcons.category>;
+  const Icon = categoryIconMap[category.key] ?? platformIcons.category;
+  const ActionIcon = platformIcons.action;
+  const accent = `accent-${categoryAccent(category.key)}`;
   const content = (
     <>
-      <strong>{category.key}</strong>
+      <div className="category-card-top">
+        <Badge className={`category-badge category-badge-${category.key.toLowerCase()}`}>{category.key}</Badge>
+        <IconTile accent={accent} icon={Icon} size="sm" />
+      </div>
       <span>{category.name}</span>
       <em>{category.capability_count > 0 ? `${category.capability_count} 个能力` : "暂无接入能力"}</em>
-      <small>{brand ? "进入分级" : "全局概览"} <IconArrowRight size={13} /></small>
+      <small>{brand ? "进入分级" : "全局概览"} <ActionIcon size={13} /></small>
     </>
   );
 
@@ -59,4 +68,11 @@ export function CategoryCard({ brand, category }: { brand?: BrandSummary; catego
       {content}
     </Link>
   );
+}
+
+function categoryAccent(categoryKey: string) {
+  if (categoryKey === "P2") return "lavender";
+  if (categoryKey === "P3") return "sage";
+  if (categoryKey === "P4") return "amber";
+  return "slate";
 }

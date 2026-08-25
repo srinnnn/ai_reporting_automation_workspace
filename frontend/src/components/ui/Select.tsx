@@ -1,5 +1,6 @@
 import * as RadixSelect from "@radix-ui/react-select";
 import { IconChevronDown, IconCheck } from "@tabler/icons-react";
+import type { Icon } from "@tabler/icons-react";
 import { forwardRef } from "react";
 import { cn } from "./utils";
 
@@ -13,6 +14,7 @@ type SelectProps = {
   className?: string;
   disabled?: boolean;
   id?: string;
+  leadingIcon?: Icon;
   onValueChange: (value: string) => void;
   options: SelectOption[];
   placeholder?: string;
@@ -20,7 +22,7 @@ type SelectProps = {
 };
 
 export const Select = forwardRef<HTMLButtonElement, SelectProps>(function Select(
-  { ariaLabel, className, disabled, id, onValueChange, options, placeholder = "请选择", value },
+  { ariaLabel, className, disabled, id, leadingIcon: LeadingIcon, onValueChange, options, placeholder = "请选择", value },
   ref,
 ) {
   return (
@@ -32,6 +34,7 @@ export const Select = forwardRef<HTMLButtonElement, SelectProps>(function Select
         data-slot="select-trigger"
         id={id}
       >
+        {LeadingIcon ? <LeadingIcon aria-hidden="true" className="ui-select-leading-icon" size={15} /> : null}
         <RadixSelect.Value placeholder={placeholder} />
         <RadixSelect.Icon asChild>
           <IconChevronDown size={16} />

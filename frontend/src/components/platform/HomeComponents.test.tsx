@@ -3,9 +3,10 @@ import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Link, MemoryRouter } from "react-router-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { BrandSelector, CategoryCard, EmptyState, MetricCard } from ".";
+import { BrandSelector, CategoryCard, EmptyState, FeedbackPanel, MetricCard, PlatformSidebar, ProjectRow, QuickActionGrid } from ".";
 import { Button, Input, Tooltip } from "../ui";
-import type { BrandSummary, CategorySummary } from "../../types/platform";
+import { platformIcons } from "./iconSemantics";
+import type { BrandSummary, CategorySummary, ProjectSummary } from "../../types/platform";
 
 const brands: BrandSummary[] = [
   {
@@ -31,6 +32,17 @@ const p4Category: CategorySummary = {
   status: "NOT_CONNECTED",
   capabilities: [],
 };
+
+const projects: ProjectSummary[] = [
+  { key: "anta_reporting", name: "安踏周报/月报", brand_key: "ANTA", category_key: "P1", status: "CONNECTED" },
+];
+
+const quickActions = [
+  { to: "/data-foundation", title: "数据入库", description: "进入数据入库中心", icon: platformIcons.data, accent: "accent-slate" },
+  { to: "/tasks", title: "自动化执行", description: "运行已接入自动化任务", icon: platformIcons.automation, accent: "accent-sage" },
+  { to: "/reports", title: "查看报表", description: "查看数据与结果", icon: platformIcons.report, accent: "accent-lavender" },
+  { to: "/schedule", title: "开发排期", description: "查看项目开发状态", icon: platformIcons.schedule, accent: "accent-amber" },
+];
 
 describe("platform homepage components", () => {
   afterEach(() => {
@@ -95,6 +107,7 @@ describe("platform homepage components", () => {
     expect(screen.getByTestId("kpi-feedback")).toHaveTextContent("反馈");
     expect(screen.getByTestId("kpi-feedback")).toHaveTextContent("未接入");
     expect(screen.getByTestId("kpi-feedback")).not.toHaveTextContent("0");
+    expect(screen.getByTestId("icon-tile")).toBeInTheDocument();
   });
 
   it("CategoryCard keeps brand and P-category route without exposing capabilities", () => {
@@ -106,6 +119,52 @@ describe("platform homepage components", () => {
 
     expect(screen.getByRole("link", { name: /P4/ })).toHaveAttribute("href", "/workspace/BSH/P4");
     expect(screen.getByText("暂无接入能力")).toBeInTheDocument();
+    expect(screen.getByText("P4")).toHaveAttribute("data-slot", "badge");
+    expect(screen.getByTestId("icon-tile")).toBeInTheDocument();
+  });
+
+  it("PlatformSidebar renders semantic icon containers for primary navigation", () => {
+    render(
+      <MemoryRouter>
+        <PlatformSidebar />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getAllByTestId("nav-icon")).toHaveLength(8);
+    expect(screen.getByRole("link", { name: "首页概览" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "品牌工作台" })).toBeInTheDocument();
+  });
+
+  it("ProjectRow renders category badge, status text, and action affordance", () => {
+    render(
+      <MemoryRouter>
+        <ProjectRow project={projects[0]} />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByText("P1")).toHaveAttribute("data-slot", "badge");
+    expect(screen.getByTestId("status-dot")).toHaveTextContent("CONNECTED");
+    expect(screen.getByRole("link", { name: /安踏周报\/月报/ })).toHaveAttribute("href", "/projects/anta_reporting");
+  });
+
+  it("FeedbackPanel empty state includes icon and truthful text", () => {
+    render(<FeedbackPanel emptyTitle="当前暂无已接入的开发反馈数据" />);
+
+    expect(screen.getByTestId("icon-tile")).toBeInTheDocument();
+    expect(screen.getByText("当前暂无已接入的开发反馈数据")).toBeInTheDocument();
+    expect(screen.getByTestId("developed-feedback")).not.toHaveTextContent("0 条");
+  });
+
+  it("QuickActionGrid renders four approved icon-assisted actions", () => {
+    render(
+      <MemoryRouter>
+        <QuickActionGrid actions={quickActions} />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getAllByTestId("icon-tile")).toHaveLength(4);
+    expect(screen.getByRole("link", { name: /数据入库/ })).toHaveAttribute("href", "/data-foundation");
+    expect(screen.getByRole("link", { name: /开发排期/ })).toHaveAttribute("href", "/schedule");
   });
 
   it("EmptyState renders explicit empty copy", () => {

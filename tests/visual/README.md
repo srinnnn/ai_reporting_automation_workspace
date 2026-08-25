@@ -21,6 +21,7 @@ Current status:
 - Product design source: `docs/ui-reference/homepage-approved.png`
 - Runtime screenshot evidence:
   - `tests/visual/runtime/homepage-global.png`
+  - `tests/visual/runtime/homepage-global-filter-anta.png`
   - `tests/visual/runtime/homepage-workspace-entry-anta.png`
   - `tests/visual/runtime/homepage-workspace-entry-ecco.png`
   - `tests/visual/runtime/workspace-anta.png`

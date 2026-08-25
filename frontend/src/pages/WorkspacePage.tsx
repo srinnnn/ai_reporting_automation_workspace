@@ -1,10 +1,4 @@
 import { useQuery } from "@tanstack/react-query";
-import {
-  IconCalendar,
-  IconDatabase,
-  IconFlag,
-  IconShieldCheck,
-} from "@tabler/icons-react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { api } from "../api/client";
 import {
@@ -14,6 +8,7 @@ import {
   FeedbackPanel,
   MetricGrid,
 } from "../components/platform";
+import { platformIcons } from "../components/platform/iconSemantics";
 import type { BrandSummary, ProjectSummary } from "../types/platform";
 
 export function WorkspacePage() {
@@ -31,10 +26,13 @@ export function WorkspacePage() {
   return (
     <div className="page">
       <section className="page-header" data-module="brand-header">
-        <div>
-          <p className="eyebrow">品牌工作台 / {data.key}</p>
-          <h1>{data.name}</h1>
-          <p>{data.tagline}</p>
+        <div className="workspace-heading">
+          <div className="brand-monogram brand-monogram-sm" aria-hidden="true">{data.key.slice(0, 1)}</div>
+          <div>
+            <p className="eyebrow">品牌工作台 / {data.key}</p>
+            <h1>{data.name}</h1>
+            <p>{data.tagline}</p>
+          </div>
         </div>
         <Link className="text-link" to="/">返回首页</Link>
       </section>
@@ -79,10 +77,10 @@ export function WorkspacePage() {
 function buildBrandMetrics(brand: BrandSummary, projects: ProjectSummary[]) {
   const capabilityCount = brand.categories.reduce((total, category) => total + category.capability_count, 0);
   return [
-    { accent: "accent-slate", icon: IconDatabase, label: "已接分类", note: "当前品牌", testId: "kpi-active-categories", value: brand.active_category_count },
-    { accent: "accent-sage", icon: IconFlag, label: "已接项目", note: "当前品牌", testId: "kpi-connected-projects", value: projects.length },
-    { accent: "accent-lavender", icon: IconShieldCheck, label: "可见能力", note: "Workspace 内可见", testId: "kpi-capabilities", value: capabilityCount },
-    { accent: "accent-amber", icon: IconCalendar, label: "反馈", note: "暂无数据源", testId: "kpi-feedback", value: "未接入" },
+    { accent: "accent-slate", icon: platformIcons.category, label: "已接分类", note: "当前品牌", testId: "kpi-active-categories", value: brand.active_category_count },
+    { accent: "accent-sage", icon: platformIcons.project, label: "已接项目", note: "当前品牌", testId: "kpi-connected-projects", value: projects.length },
+    { accent: "accent-lavender", icon: platformIcons.brandWorkspace, label: "可见能力", note: "Workspace 内可见", testId: "kpi-capabilities", value: capabilityCount },
+    { accent: "accent-amber", icon: platformIcons.feedback, label: "反馈", note: "暂无数据源", testId: "kpi-feedback", value: "未接入" },
   ];
 }
 

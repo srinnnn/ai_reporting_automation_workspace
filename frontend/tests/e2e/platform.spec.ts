@@ -87,7 +87,7 @@ test("homepage structural visual regression matches approved baseline contract",
   const filterLabels = await page.getByTestId("global-filters").getByRole("combobox").allInnerTexts();
   expect(filterLabels.map((label) => label.trim())).toEqual(baseline.filters);
 
-  const categoryLabels = await page.locator(".category-card strong").allInnerTexts();
+  const categoryLabels = await page.locator(".category-card .category-badge").allInnerTexts();
   expect(categoryLabels.map((label) => label.trim())).toEqual(baseline.categoryEntries);
 
   const quickNavigationLabels = await page.getByTestId("quick-navigation").locator("strong").allInnerTexts();
@@ -248,6 +248,10 @@ test("captures runtime visual evidence at approved desktop viewport", async ({ p
   await expect(page.getByTestId("selected-brand-banner")).toContainText("ECCO");
   await expect.poll(() => globalDashboardSnapshot(page)).toEqual(globalBefore);
   await page.screenshot({ path: "../tests/visual/runtime/homepage-workspace-entry-ecco.png", fullPage: true });
+
+  await selectGlobalFilter(page, "品牌", "ANTA 安踏");
+  await expect(page.getByTestId("kpi-brand-count")).toContainText("1");
+  await page.screenshot({ path: "../tests/visual/runtime/homepage-global-filter-anta.png", fullPage: true });
 
   await page.goto("/workspace/ANTA");
   await expect(page.getByRole("heading", { name: "ANTA 安踏" })).toBeVisible();

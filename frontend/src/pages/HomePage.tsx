@@ -1,12 +1,3 @@
-import {
-  IconCalendar,
-  IconDatabase,
-  IconFlag,
-  IconPlayerPlay,
-  IconReportAnalytics,
-  IconShieldCheck,
-  IconTimeline,
-} from "@tabler/icons-react";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { api } from "../api/client";
@@ -20,6 +11,7 @@ import {
   PageHeader,
   QuickActionGrid,
 } from "../components/platform";
+import { platformIcons } from "../components/platform/iconSemantics";
 import type { GlobalFilters } from "../components/platform/GlobalFilterBar";
 import type { BrandSummary, CategorySummary, ProjectSummary } from "../types/platform";
 
@@ -31,10 +23,10 @@ const emptyCategories: CategorySummary[] = [
 ];
 
 const quickActions = [
-  { to: "/data-foundation", title: "数据入库", description: "导入并管理业务数据", icon: IconDatabase, accent: "accent-slate" },
-  { to: "/tasks", title: "自动化执行", description: "运行已接入自动化任务", icon: IconPlayerPlay, accent: "accent-sage" },
-  { to: "/reports", title: "查看报表", description: "查看数据与结果", icon: IconReportAnalytics, accent: "accent-lavender" },
-  { to: "/schedule", title: "开发排期", description: "查看项目开发状态", icon: IconTimeline, accent: "accent-amber" },
+  { to: "/data-foundation", title: "数据入库", description: "进入数据入库中心", icon: platformIcons.data, accent: "accent-slate" },
+  { to: "/tasks", title: "自动化执行", description: "运行已接入自动化任务", icon: platformIcons.automation, accent: "accent-sage" },
+  { to: "/reports", title: "查看报表", description: "查看数据与结果", icon: platformIcons.report, accent: "accent-lavender" },
+  { to: "/schedule", title: "开发排期", description: "查看项目开发状态", icon: platformIcons.schedule, accent: "accent-amber" },
 ];
 
 const allFilterValue = "ALL";
@@ -112,10 +104,10 @@ function buildGlobalMetrics(projects: ProjectSummary[], categories: CategorySumm
   const activeCategoryCount = categories.filter((category) => category.capability_count > 0).length;
   return {
     cards: [
-      { accent: "accent-slate", icon: IconDatabase, label: "已接品牌", note: "当前全局范围", testId: "kpi-brand-count", value: brandCount },
-      { accent: "accent-sage", icon: IconFlag, label: "已接项目", note: "当前全局范围", testId: "kpi-connected-projects", value: projects.length },
-      { accent: "accent-lavender", icon: IconShieldCheck, label: "已接分类", note: "当前全局范围", testId: "kpi-active-categories", value: activeCategoryCount },
-      { accent: "accent-amber", icon: IconCalendar, label: "反馈", note: "暂无数据源", testId: "kpi-feedback", value: "未接入" },
+      { accent: "accent-slate", icon: platformIcons.brandWorkspace, label: "已接品牌", note: "当前全局范围", testId: "kpi-brand-count", value: brandCount },
+      { accent: "accent-sage", icon: platformIcons.project, label: "已接项目", note: "当前全局范围", testId: "kpi-connected-projects", value: projects.length },
+      { accent: "accent-lavender", icon: platformIcons.category, label: "已接分类", note: "当前全局范围", testId: "kpi-active-categories", value: activeCategoryCount },
+      { accent: "accent-amber", icon: platformIcons.feedback, label: "反馈", note: "暂无数据源", testId: "kpi-feedback", value: "未接入" },
     ],
   };
 }
