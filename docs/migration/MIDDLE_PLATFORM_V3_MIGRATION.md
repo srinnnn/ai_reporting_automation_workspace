@@ -4,6 +4,21 @@
 
 Move the official runtime to React + Vite frontend served by FastAPI on port `8785`.
 
+## Current State
+
+- Current stage: MERGED
+- Post-merge verification: PASS
+- Release status: NOT_RELEASED
+- Next stage: READY_FOR_NEXT_STAGE
+- Evidence: PR #7, PR head `270fabd0fd7ac6a5b7f0da3e7e926b392aef8e8a`, merge commit `d703742296b54adcc766c8d6921c7fdae93560cc`, post-merge CI run `32723298005`, visual artifact `runtime-visual-homepage` / `9518608262`.
+
+## Schedule State
+
+- Development: COMPLETE
+- Merge: COMPLETE
+- Post-merge verification: COMPLETE
+- Release: NOT_RELEASED
+
 ## Current Scope
 
 - React routes for homepage, workspace, category, project, schedule, and platform modules
