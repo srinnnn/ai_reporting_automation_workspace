@@ -6,20 +6,33 @@ import { EmptyState } from "./EmptyState";
 
 type ConnectedProjectsProps = {
   brand?: BrandSummary;
+  dataModule?: string;
+  emptyText?: string;
+  homepageModule?: boolean;
   projects: ProjectSummary[];
+  scopeLabel?: string;
+  testId?: string;
 };
 
-export function ConnectedProjects({ brand, projects }: ConnectedProjectsProps) {
+export function ConnectedProjects({
+  brand,
+  dataModule = "global-projects",
+  emptyText = "当前筛选范围暂无项目数据",
+  homepageModule = true,
+  projects,
+  scopeLabel,
+  testId = "connected-projects",
+}: ConnectedProjectsProps) {
   return (
-    <section className="panel project-panel" data-testid="connected-projects" data-homepage-module="true" data-module="connected-projects">
+    <section className="panel project-panel" data-testid={testId} {...(homepageModule ? { "data-homepage-module": "true" } : {})} data-module={dataModule}>
       <div className="section-title">
         <h2>已接项目</h2>
-        <span>{brand?.name ?? "暂无品牌"} / {projects.length} 项</span>
+        <span>{scopeLabel ?? brand?.name ?? "全部品牌"} / {projects.length} 项</span>
       </div>
       <div className="project-list">
-        {projects.length ? projects.slice(0, 5).map((project) => (
+        {projects.length ? projects.slice(0, 8).map((project) => (
           <ProjectRow project={project} key={project.key} />
-        )) : <EmptyState text="当前品牌暂无项目数据" />}
+        )) : <EmptyState text={emptyText} />}
       </div>
     </section>
   );

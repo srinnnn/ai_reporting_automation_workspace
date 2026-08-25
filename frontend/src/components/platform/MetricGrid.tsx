@@ -9,9 +9,16 @@ type Metric = {
   value: string | number;
 };
 
-export function MetricGrid({ metrics }: { metrics: Metric[] }) {
+type MetricGridProps = {
+  dataModule?: string;
+  homepageModule?: boolean;
+  metrics: Metric[];
+  testId?: string;
+};
+
+export function MetricGrid({ dataModule = "global-kpi", homepageModule = true, metrics, testId = "global-kpi" }: MetricGridProps) {
   return (
-    <section className="kpi-grid" data-testid="selected-brand-kpi" data-homepage-module="true" data-module="selected-brand-kpi">
+    <section className="kpi-grid" data-testid={testId} {...(homepageModule ? { "data-homepage-module": "true" } : {})} data-module={dataModule}>
       {metrics.map((metric) => <MetricCard key={metric.testId} metric={metric} />)}
     </section>
   );

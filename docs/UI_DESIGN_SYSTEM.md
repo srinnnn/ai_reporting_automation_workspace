@@ -118,7 +118,7 @@ Current status:
 - `VISUAL_REGRESSION = PARTIAL`
 - `RUNTIME_VISUAL_BASELINE = PENDING_SCREENSHOT_COMPARISON`
 - `docs/ui-reference/homepage-approved.png` is the Product Design Source.
-- `tests/visual/runtime/homepage.png` is the Playwright runtime screenshot evidence.
+- Playwright runtime screenshot evidence is stored under `tests/visual/runtime/` for global home, Workspace Entry states, and single-brand workspace pages.
 
 Future key UI changes must compare Playwright runtime screenshots from `http://127.0.0.1:8785/` with confirmed runtime baselines before reporting a full visual regression gate as ready. If an unapproved major visual change exists:
 
