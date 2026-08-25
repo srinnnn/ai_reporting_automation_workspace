@@ -1,4 +1,6 @@
 import type { BrandSummary } from "../../types/platform";
+import { IconTile } from "./IconTile";
+import { platformIcons } from "./iconSemantics";
 
 type FeedbackPanelProps = {
   brand?: BrandSummary;
@@ -23,6 +25,7 @@ export function FeedbackPanel({
     <section className="panel feedback-panel" data-testid={testId} {...(homepageModule ? { "data-homepage-module": "true" } : {})} data-module={dataModule}>
       <div className="section-title"><h2>已开发反馈汇总</h2><span>{scopeLabel ?? brand?.name ?? "全部品牌"} / 未接入</span></div>
       <div className="feedback-empty">
+        <IconTile accent="accent-amber" icon={platformIcons.feedback} />
         <strong>{emptyTitle}</strong>
         <p>{emptyDescription}</p>
       </div>

@@ -11,6 +11,7 @@ Current status:
 | `/` | `homepage.png` | SEEDED_REFERENCE_ONLY |
 | `/` | `homepage-structure.json` | STRUCTURAL_REGRESSION_READY |
 | `/` | `../runtime/homepage-global.png` | RUNTIME_SCREENSHOT_EVIDENCE |
+| `/` Global Brand Filter ANTA | `../runtime/homepage-global-filter-anta.png` | RUNTIME_SCREENSHOT_EVIDENCE |
 | `/` Workspace Entry ANTA | `../runtime/homepage-workspace-entry-anta.png` | RUNTIME_SCREENSHOT_EVIDENCE |
 | `/` Workspace Entry ECCO | `../runtime/homepage-workspace-entry-ecco.png` | RUNTIME_SCREENSHOT_EVIDENCE |
 | `/workspace/ANTA` | `../runtime/workspace-anta.png` | RUNTIME_SCREENSHOT_EVIDENCE |

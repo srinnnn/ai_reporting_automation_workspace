@@ -1,8 +1,9 @@
-import { IconArrowRight } from "@tabler/icons-react";
 import { Link } from "react-router-dom";
 import type { BrandSummary, ProjectSummary } from "../../types/platform";
 import { Badge } from "../ui";
 import { EmptyState } from "./EmptyState";
+import { StatusDot } from "./StatusDot";
+import { platformIcons } from "./iconSemantics";
 
 type ConnectedProjectsProps = {
   brand?: BrandSummary;
@@ -39,13 +40,17 @@ export function ConnectedProjects({
 }
 
 export function ProjectRow({ project }: { project: ProjectSummary }) {
+  const ActionIcon = platformIcons.action;
   return (
     <Link className="project-row" data-testid={`project-${project.key}`} to={`/projects/${project.key}`}>
-      <span className={`project-priority category-${project.category_key.toLowerCase()}`}>{project.category_key}</span>
-      <strong>{project.name}</strong>
-      <span>{project.brand_key}</span>
-      <Badge variant="success">{project.status}</Badge>
-      <IconArrowRight className="project-arrow" size={15} />
+      <Badge className={`category-badge category-badge-${project.category_key.toLowerCase()}`}>{project.category_key}</Badge>
+      <div className="project-row-copy">
+        <strong>{project.name}</strong>
+        <span>{project.category_key} 分类能力</span>
+      </div>
+      <span className="project-brand-meta">{project.brand_key}</span>
+      <StatusDot status={project.status} />
+      <ActionIcon className="project-arrow" size={15} />
     </Link>
   );
 }

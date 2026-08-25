@@ -1,4 +1,5 @@
 import type { Icon } from "@tabler/icons-react";
+import { IconTile } from "./IconTile";
 
 type Metric = {
   accent: string;
@@ -28,7 +29,7 @@ export function MetricCard({ metric }: { metric: Metric }) {
   const Icon = metric.icon;
   return (
     <article className={`kpi-card ${metric.accent}`} data-testid={metric.testId}>
-      <Icon size={18} />
+      <IconTile accent={metric.accent} icon={Icon} />
       <span>{metric.label}</span>
       <strong>{metric.value}</strong>
       <em>{metric.note}</em>

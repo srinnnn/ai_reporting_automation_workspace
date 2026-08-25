@@ -1,6 +1,7 @@
 import { IconFilter } from "@tabler/icons-react";
 import type { BrandSummary, ProjectSummary } from "../../types/platform";
 import { Select } from "../ui";
+import { platformIcons } from "./iconSemantics";
 
 export type GlobalFilters = {
   brandKey: string;
@@ -42,10 +43,10 @@ export function GlobalFilterBar({ brands, filters, onChange, projects }: GlobalF
   return (
     <section className="filter-bar" data-testid="global-filters" data-homepage-module="true" data-module="global-filters">
       <span><IconFilter size={16} /> 全局筛选</span>
-      <Select ariaLabel="项目" className="filter-select" options={projectOptions} value={filters.projectKey} onValueChange={(projectKey) => onChange({ ...filters, projectKey })} />
-      <Select ariaLabel="品牌" className="filter-select" options={brandOptions} value={filters.brandKey} onValueChange={(brandKey) => onChange({ ...filters, brandKey })} />
-      <Select ariaLabel="P分类" className="filter-select" options={categoryOptions} value={filters.categoryKey} onValueChange={(categoryKey) => onChange({ ...filters, categoryKey })} />
-      <Select ariaLabel="状态" className="filter-select" options={statusOptions} value={filters.status} onValueChange={(status) => onChange({ ...filters, status })} />
+      <Select ariaLabel="项目" className="filter-select" leadingIcon={platformIcons.project} options={projectOptions} value={filters.projectKey} onValueChange={(projectKey) => onChange({ ...filters, projectKey })} />
+      <Select ariaLabel="品牌" className="filter-select" leadingIcon={platformIcons.brandWorkspace} options={brandOptions} value={filters.brandKey} onValueChange={(brandKey) => onChange({ ...filters, brandKey })} />
+      <Select ariaLabel="P分类" className="filter-select" leadingIcon={platformIcons.category} options={categoryOptions} value={filters.categoryKey} onValueChange={(categoryKey) => onChange({ ...filters, categoryKey })} />
+      <Select ariaLabel="状态" className="filter-select" leadingIcon={platformIcons.activity} options={statusOptions} value={filters.status} onValueChange={(status) => onChange({ ...filters, status })} />
     </section>
   );
 }
