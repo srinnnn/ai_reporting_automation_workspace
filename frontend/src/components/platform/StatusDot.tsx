@@ -14,9 +14,9 @@ export function StatusDot({ status }: StatusDotProps) {
 
 function statusTone(status: string) {
   const normalized = status.trim().toUpperCase();
+  if (normalized.includes("REVIEW")) return "review";
   if (normalized.includes("CONNECTED") || normalized.includes("COMPLETE") || normalized.includes("READY")) return "success";
   if (normalized.includes("DEVELOP") || normalized.includes("RUNNING") || normalized.includes("PROGRESS")) return "progress";
-  if (normalized.includes("REVIEW")) return "review";
   if (normalized.includes("BLOCK") || normalized.includes("ERROR") || normalized.includes("FAIL")) return "blocked";
   return "neutral";
 }

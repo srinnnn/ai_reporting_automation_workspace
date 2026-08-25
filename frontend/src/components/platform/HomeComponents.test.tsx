@@ -3,7 +3,17 @@ import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Link, MemoryRouter } from "react-router-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { BrandSelector, CategoryCard, EmptyState, FeedbackPanel, MetricCard, PlatformSidebar, ProjectRow, QuickActionGrid } from ".";
+import {
+  BrandSelector,
+  CategoryCard,
+  EmptyState,
+  FeedbackPanel,
+  MetricCard,
+  PlatformSidebar,
+  ProjectRow,
+  QuickActionGrid,
+  StatusDot,
+} from ".";
 import { Button, Input, Tooltip } from "../ui";
 import { platformIcons } from "./iconSemantics";
 import type { BrandSummary, CategorySummary, ProjectSummary } from "../../types/platform";
@@ -145,6 +155,18 @@ describe("platform homepage components", () => {
     expect(screen.getByText("P1")).toHaveAttribute("data-slot", "badge");
     expect(screen.getByTestId("status-dot")).toHaveTextContent("CONNECTED");
     expect(screen.getByRole("link", { name: /安踏周报\/月报/ })).toHaveAttribute("href", "/projects/anta_reporting");
+  });
+
+  it.each([
+    ["READY_FOR_REVIEW", "review"],
+    ["CONNECTED", "success"],
+    ["IN_DEVELOPMENT", "progress"],
+    ["BLOCKED", "blocked"],
+  ])("StatusDot maps %s to %s tone", (status, tone) => {
+    render(<StatusDot status={status} />);
+
+    expect(screen.getByTestId("status-dot")).toHaveClass(`status-dot-${tone}`);
+    expect(screen.getByTestId("status-dot")).toHaveTextContent(status);
   });
 
   it("FeedbackPanel empty state includes icon and truthful text", () => {
