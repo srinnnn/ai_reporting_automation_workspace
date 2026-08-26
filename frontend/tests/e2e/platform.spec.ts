@@ -241,6 +241,17 @@ test("real feedback state follows Global Filters while Workspace Entry remains i
   await expect(page.getByTestId("developed-feedback")).toContainText("ECCO真实反馈测试");
   await expect(page.getByTestId("developed-feedback")).toContainText("BSH真实反馈测试");
   await expect(page.getByTestId("developed-feedback")).toContainText("待映射真实反馈测试");
+  const feedbackScroller = page.getByRole("region", { name: "反馈记录横向列表" });
+  await expect(feedbackScroller).toBeVisible();
+  const scrollerState = await feedbackScroller.evaluate((element) => ({
+    clientWidth: element.clientWidth,
+    gridAutoFlow: getComputedStyle(element).gridAutoFlow,
+    overflowX: getComputedStyle(element).overflowX,
+    scrollWidth: element.scrollWidth,
+  }));
+  expect(scrollerState.gridAutoFlow).toBe("column");
+  expect(scrollerState.overflowX).toBe("auto");
+  expect(scrollerState.scrollWidth).toBeGreaterThan(scrollerState.clientWidth);
 
   await selectWorkspaceEntry(page, "ECCO");
   await expect(page.getByTestId("kpi-feedback")).toContainText("4");

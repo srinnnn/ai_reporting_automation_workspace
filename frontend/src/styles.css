@@ -139,8 +139,12 @@ button, input, select { font: inherit; }
 .feedback-empty { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 12px; align-items: start; background: var(--surface-elevated); border-radius: var(--radius-md); padding: 16px; color: var(--text-secondary); }
 .feedback-empty strong { display: block; font-size: 15px; margin-bottom: 6px; }
 .feedback-empty p { grid-column: 2; margin: 0; color: var(--text-muted); font-size: 13px; }
-.feedback-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 11px; }
-.feedback-record { display: grid; gap: 13px; border: 1px solid var(--border-subtle); border-radius: var(--radius-md); padding: 15px; background: var(--surface-base); }
+.feedback-list { display: grid; grid-auto-flow: column; grid-auto-columns: clamp(320px, 34%, 390px); gap: 11px; overflow-x: auto; overscroll-behavior-inline: contain; padding: 1px 1px 10px; scroll-snap-type: inline proximity; scrollbar-color: var(--border-control) transparent; scrollbar-width: thin; }
+.feedback-list:focus-visible { outline: 2px solid var(--accent-slate); outline-offset: 3px; }
+.feedback-list::-webkit-scrollbar { height: 8px; }
+.feedback-list::-webkit-scrollbar-track { background: transparent; }
+.feedback-list::-webkit-scrollbar-thumb { background: var(--border-control); border-radius: var(--radius-pill); }
+.feedback-record { display: grid; align-content: start; gap: 13px; min-width: 0; border: 1px solid var(--border-subtle); border-radius: var(--radius-md); padding: 15px; background: var(--surface-base); scroll-snap-align: start; }
 .feedback-record-header { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 11px; align-items: center; }
 .feedback-record-title { display: grid; gap: 3px; min-width: 0; }
 .feedback-record-title strong { font-size: 15px; font-weight: 650; }
@@ -170,7 +174,8 @@ footer { color: var(--text-subtle); font-size: 12px; text-align: center; padding
 @media (max-width: 860px) {
   .shell { grid-template-columns: 1fr; }
   .sidebar { display: none; }
-  .brand-grid, .category-grid, .kpi-grid, .panel-grid, .quick-nav, .project-list, .feedback-list { grid-template-columns: 1fr; }
+  .brand-grid, .category-grid, .kpi-grid, .panel-grid, .quick-nav, .project-list { grid-template-columns: 1fr; }
+  .feedback-list { grid-auto-columns: minmax(280px, 86%); }
   .topbar { grid-template-columns: 1fr; height: auto; padding: 12px 16px; }
   .topbar-actions { flex-wrap: wrap; }
   .topbar-search { width: 100%; }

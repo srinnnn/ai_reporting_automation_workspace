@@ -28,7 +28,7 @@ export function FeedbackPanel({
     <section className="panel feedback-panel" data-testid={testId} {...(homepageModule ? { "data-homepage-module": "true" } : {})} data-module={dataModule}>
       <div className="section-title"><h2>已开发反馈汇总</h2><span>{scopeLabel ?? brand?.name ?? "全部品牌"} / {records.length} 条</span></div>
       {records.length ? (
-        <div className="feedback-list">
+        <div aria-label="反馈记录横向列表" className="feedback-list" role="region" tabIndex={0}>
           {records.map((record) => <FeedbackRecordCard key={record.project} record={record} />)}
         </div>
       ) : (

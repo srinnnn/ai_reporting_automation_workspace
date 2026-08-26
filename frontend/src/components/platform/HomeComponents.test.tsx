@@ -197,6 +197,7 @@ describe("platform homepage components", () => {
   it("FeedbackPanel renders existing feedback fields", () => {
     render(<FeedbackPanel records={feedback} />);
 
+    expect(screen.getByRole("region", { name: "反馈记录横向列表" })).toHaveAttribute("tabindex", "0");
     expect(screen.getByTestId("developed-feedback")).toHaveTextContent("全部品牌 / 1 条");
     expect(screen.getByText("安踏即时零售")).toBeInTheDocument();
     expect(screen.getByText("来源：P3-即时零售-安踏")).toBeInTheDocument();
