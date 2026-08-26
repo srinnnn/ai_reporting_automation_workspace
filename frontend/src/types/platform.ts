@@ -30,6 +30,21 @@ export type ProjectSummary = {
   status: string;
 };
 
+export type FeedbackSummary = {
+  project: string;
+  mapped_project_key: string | null;
+  mapped_project_name: string | null;
+  brand_key: string | null;
+  category_key: "P1" | "P2" | "P3" | "P4" | null;
+  status: string;
+  original_manual_time: string;
+  current_processing_time: string;
+  business_feedback: string;
+  iteration_need: string;
+  updated_by: string;
+  updated_at: string;
+};
+
 export type DashboardSummary = {
   brands: BrandSummary[];
   projects: ProjectSummary[];

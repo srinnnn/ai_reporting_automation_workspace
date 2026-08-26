@@ -16,7 +16,7 @@ import {
 } from ".";
 import { Button, Input, Tooltip } from "../ui";
 import { platformIcons } from "./iconSemantics";
-import type { BrandSummary, CategorySummary, ProjectSummary } from "../../types/platform";
+import type { BrandSummary, CategorySummary, FeedbackSummary, ProjectSummary } from "../../types/platform";
 
 const brands: BrandSummary[] = [
   {
@@ -45,6 +45,23 @@ const p4Category: CategorySummary = {
 
 const projects: ProjectSummary[] = [
   { key: "anta_reporting", name: "安踏周报/月报", brand_key: "ANTA", category_key: "P1", status: "CONNECTED" },
+];
+
+const feedback: FeedbackSummary[] = [
+  {
+    project: "P3-即时零售-安踏",
+    mapped_project_key: "anta_retail",
+    mapped_project_name: "安踏即时零售",
+    brand_key: "ANTA",
+    category_key: "P3",
+    status: "CONNECTED",
+    original_manual_time: "74小时",
+    current_processing_time: "1小时",
+    business_feedback: "运行稳定",
+    iteration_need: "增加批量处理",
+    updated_by: "admin",
+    updated_at: "2026-08-26 10:00:00",
+  },
 ];
 
 const quickActions = [
@@ -174,7 +191,20 @@ describe("platform homepage components", () => {
 
     expect(screen.getByTestId("icon-tile")).toBeInTheDocument();
     expect(screen.getByText("当前暂无已接入的开发反馈数据")).toBeInTheDocument();
-    expect(screen.getByTestId("developed-feedback")).not.toHaveTextContent("0 条");
+    expect(screen.getByTestId("developed-feedback")).toHaveTextContent("0 条");
+  });
+
+  it("FeedbackPanel renders existing feedback fields", () => {
+    render(<FeedbackPanel records={feedback} />);
+
+    expect(screen.getByTestId("developed-feedback")).toHaveTextContent("全部品牌 / 1 条");
+    expect(screen.getByText("安踏即时零售")).toBeInTheDocument();
+    expect(screen.getByText("来源：P3-即时零售-安踏")).toBeInTheDocument();
+    expect(screen.getByText("74小时")).toBeInTheDocument();
+    expect(screen.getByText("1小时")).toBeInTheDocument();
+    expect(screen.getByText("运行稳定")).toBeInTheDocument();
+    expect(screen.getByText("增加批量处理")).toBeInTheDocument();
+    expect(screen.getByText(/admin/)).toBeInTheDocument();
   });
 
   it("QuickActionGrid renders four approved icon-assisted actions", () => {

@@ -5,8 +5,13 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from intranet_app.storage import AutomationRunRecord, AutomationTaskRecord, JobRecord, UserRecord
-
+from intranet_app.storage import (
+    AutomationRunRecord,
+    AutomationTaskRecord,
+    JobRecord,
+    ProjectFeedbackRecord,
+    UserRecord,
+)
 
 TASK_STATUSES = ("pending", "running", "success", "failed", "cancelled")
 
@@ -207,6 +212,12 @@ class ReportRepository(ABC):
 
     @abstractmethod
     def get_report(self, report_id: int) -> JobRecord | None:
+        raise NotImplementedError
+
+
+class FeedbackRepository(ABC):
+    @abstractmethod
+    def list_feedback(self) -> tuple[ProjectFeedbackRecord, ...]:
         raise NotImplementedError
 
 

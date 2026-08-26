@@ -13,7 +13,7 @@ import {
 } from "../components/platform";
 import { platformIcons } from "../components/platform/iconSemantics";
 import type { GlobalFilters } from "../components/platform/GlobalFilterBar";
-import type { BrandSummary, CategorySummary, ProjectSummary } from "../types/platform";
+import type { BrandSummary, CategorySummary, FeedbackSummary, ProjectSummary } from "../types/platform";
 
 const emptyCategories: CategorySummary[] = [
   { key: "P1", name: "数据提效", capability_count: 0, status: "NOT_CONNECTED", capabilities: [] },
@@ -41,12 +41,14 @@ export function HomePage() {
   const [globalFilters, setGlobalFilters] = useState<GlobalFilters>(defaultGlobalFilters);
   const [workspaceEntryBrandKey, setWorkspaceEntryBrandKey] = useState("");
   const { data, error, isLoading } = useQuery({ queryKey: ["dashboard"], queryFn: api.dashboard });
+  const feedbackQuery = useQuery({ queryKey: ["feedback"], queryFn: () => api.feedback() });
   const brands = data?.brands ?? [];
   const projects = data?.projects ?? [];
   const workspaceEntryBrand = brands.find((brand) => brand.key === workspaceEntryBrandKey) ?? brands[0];
   const filteredProjects = useMemo(() => filterProjects(projects, globalFilters), [globalFilters, projects]);
+  const filteredFeedback = useMemo(() => filterFeedback(feedbackQuery.data ?? [], globalFilters), [feedbackQuery.data, globalFilters]);
   const globalCategories = useMemo(() => buildGlobalCategories(filteredProjects), [filteredProjects]);
-  const globalMetrics = useMemo(() => buildGlobalMetrics(filteredProjects, globalCategories), [filteredProjects, globalCategories]);
+  const globalMetrics = useMemo(() => buildGlobalMetrics(filteredProjects, globalCategories, filteredFeedback.length), [filteredFeedback.length, filteredProjects, globalCategories]);
   const globalScopeLabel = buildGlobalScopeLabel(globalFilters, brands, projects);
 
   return (
@@ -66,6 +68,7 @@ export function HomePage() {
       <CategoryGrid categories={globalCategories} />
       <ConnectedProjects projects={filteredProjects} scopeLabel={globalScopeLabel} />
       <FeedbackPanel
+        records={filteredFeedback}
         scopeLabel={globalScopeLabel}
         emptyTitle="当前暂无已接入的开发反馈数据"
         emptyDescription="业务反馈接入后将在中台全局统一汇总。"
@@ -91,6 +94,16 @@ function filterProjects(projects: ProjectSummary[], filters: GlobalFilters) {
   });
 }
 
+function filterFeedback(records: FeedbackSummary[], filters: GlobalFilters) {
+  return records.filter((record) => {
+    if (filters.projectKey !== allFilterValue && record.mapped_project_key !== filters.projectKey) return false;
+    if (filters.brandKey !== allFilterValue && record.brand_key !== filters.brandKey) return false;
+    if (filters.categoryKey !== allFilterValue && record.category_key !== filters.categoryKey) return false;
+    if (filters.status !== allFilterValue && record.status !== filters.status) return false;
+    return true;
+  });
+}
+
 function buildGlobalCategories(projects: ProjectSummary[]): CategorySummary[] {
   return emptyCategories.map((category) => ({
     ...category,
@@ -99,7 +112,7 @@ function buildGlobalCategories(projects: ProjectSummary[]): CategorySummary[] {
   }));
 }
 
-function buildGlobalMetrics(projects: ProjectSummary[], categories: CategorySummary[]) {
+function buildGlobalMetrics(projects: ProjectSummary[], categories: CategorySummary[], feedbackCount: number) {
   const brandCount = new Set(projects.map((project) => project.brand_key)).size;
   const activeCategoryCount = categories.filter((category) => category.capability_count > 0).length;
   return {
@@ -107,7 +120,7 @@ function buildGlobalMetrics(projects: ProjectSummary[], categories: CategorySumm
       { accent: "accent-slate", icon: platformIcons.brandWorkspace, label: "已接品牌", note: "当前全局范围", testId: "kpi-brand-count", value: brandCount },
       { accent: "accent-sage", icon: platformIcons.project, label: "已接项目", note: "当前全局范围", testId: "kpi-connected-projects", value: projects.length },
       { accent: "accent-lavender", icon: platformIcons.category, label: "已接分类", note: "当前全局范围", testId: "kpi-active-categories", value: activeCategoryCount },
-      { accent: "accent-amber", icon: platformIcons.feedback, label: "反馈", note: "暂无数据源", testId: "kpi-feedback", value: "未接入" },
+      { accent: "accent-amber", icon: platformIcons.feedback, label: "反馈", note: "当前全局范围", testId: "kpi-feedback", value: feedbackCount },
     ],
   };
 }
