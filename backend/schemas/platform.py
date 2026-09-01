@@ -43,6 +43,23 @@ class ProjectSummary(BaseModel):
     status: str
 
 
+class FeedbackSummary(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    project: str
+    mapped_project_key: str | None = None
+    mapped_project_name: str | None = None
+    brand_key: str | None = None
+    category_key: str | None = Field(default=None, pattern=r"^P[1-4]$")
+    status: str
+    original_manual_time: str
+    current_processing_time: str
+    business_feedback: str
+    iteration_need: str
+    updated_by: str
+    updated_at: str
+
+
 class DashboardSummary(BaseModel):
     model_config = ConfigDict(frozen=True)
 

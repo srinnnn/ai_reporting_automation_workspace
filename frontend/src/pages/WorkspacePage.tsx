@@ -17,12 +17,14 @@ export function WorkspacePage() {
   const { data, isLoading, error } = useQuery({ queryKey: ["brand", brandKey], queryFn: () => api.brand(brandKey), retry: false });
   const brandsQuery = useQuery({ queryKey: ["brands"], queryFn: api.brands });
   const projectsQuery = useQuery({ queryKey: ["projects"], queryFn: api.projects });
+  const feedbackQuery = useQuery({ queryKey: ["feedback", { brand: brandKey }], queryFn: () => api.feedback({ brand: brandKey }), enabled: Boolean(brandKey) });
   if (isLoading) return <div className="page"><p className="empty">加载中</p></div>;
   if (error || !data) return <Unknown title="未知品牌" />;
   const brands = brandsQuery.data ?? [data];
   const projects = projectsQuery.data ?? [];
   const brandProjects = projects.filter((project) => project.brand_key === data.key);
-  const metrics = buildBrandMetrics(data, brandProjects);
+  const feedback = feedbackQuery.data ?? [];
+  const metrics = buildBrandMetrics(data, brandProjects, feedback.length);
   return (
     <div className="page">
       <section className="page-header" data-module="brand-header">
@@ -68,19 +70,20 @@ export function WorkspacePage() {
         emptyTitle="当前品牌暂无反馈记录"
         emptyDescription="反馈数据源接入后将在品牌工作台内按品牌汇总。"
         homepageModule={false}
+        records={feedback}
         testId="brand-feedback"
       />
     </div>
   );
 }
 
-function buildBrandMetrics(brand: BrandSummary, projects: ProjectSummary[]) {
+function buildBrandMetrics(brand: BrandSummary, projects: ProjectSummary[], feedbackCount: number) {
   const capabilityCount = brand.categories.reduce((total, category) => total + category.capability_count, 0);
   return [
     { accent: "accent-slate", icon: platformIcons.category, label: "已接分类", note: "当前品牌", testId: "kpi-active-categories", value: brand.active_category_count },
     { accent: "accent-sage", icon: platformIcons.project, label: "已接项目", note: "当前品牌", testId: "kpi-connected-projects", value: projects.length },
     { accent: "accent-lavender", icon: platformIcons.brandWorkspace, label: "可见能力", note: "Workspace 内可见", testId: "kpi-capabilities", value: capabilityCount },
-    { accent: "accent-amber", icon: platformIcons.feedback, label: "反馈", note: "暂无数据源", testId: "kpi-feedback", value: "未接入" },
+    { accent: "accent-amber", icon: platformIcons.feedback, label: "反馈", note: "当前品牌", testId: "kpi-feedback", value: feedbackCount },
   ];
 }
 

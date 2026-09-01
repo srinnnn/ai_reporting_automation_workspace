@@ -1,17 +1,18 @@
 from __future__ import annotations
 
-from datetime import UTC, datetime
 import os
-from pathlib import Path
 import sqlite3
+from datetime import UTC, datetime
+from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from backend.core.config import load_core_config
+from backend.repositories.sqlite.feedback_repository import SQLiteFeedbackRepository
+from backend.services.feedback_service import FeedbackFilters, FeedbackService
 from backend.services.platform_service import PlatformService
-
 
 APP_VERSION = "3.0.0"
 ROOT_DIR = Path(__file__).resolve().parents[1]
@@ -22,6 +23,10 @@ def create_app() -> FastAPI:
     config = load_core_config(root_dir=ROOT_DIR)
     demo_mode = os.environ.get("DEMO_MODE", "false").strip().lower() in {"1", "true", "yes", "on"}
     service = PlatformService(template_root=config.files.template_root, demo_mode=demo_mode)
+    feedback_service = FeedbackService(
+        repository=SQLiteFeedbackRepository(config.database.sqlite_path),
+        projects=service.projects(),
+    )
     app = FastAPI(title="Middle Platform API", version=APP_VERSION)
 
     @app.get("/api/v1/health")
@@ -79,6 +84,19 @@ def create_app() -> FastAPI:
         if record is None:
             raise HTTPException(status_code=404, detail="Unknown project")
         return record.model_dump()
+
+    @app.get("/api/v1/feedback")
+    def feedback(
+        brand: str | None = None,
+        category: str | None = None,
+        project: str | None = None,
+        status: str | None = None,
+    ) -> list[dict[str, object]]:
+        try:
+            filters = FeedbackFilters(brand=brand, category=category, project=project, status=status)
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+        return [record.model_dump() for record in feedback_service.list_feedback(filters)]
 
     @app.get("/api/v1/schedules")
     def schedules() -> list[dict[str, object]]:

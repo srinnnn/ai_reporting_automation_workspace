@@ -10,11 +10,11 @@
 
 ## Current Development Task
 
-- Task: PLAT-V3-MICRO-UI-ICON-SYSTEM-ENRICHMENT-V1
-- Branch: feature/plat-v3-micro-ui-icon-system-v1
+- Task: PLAT-V3-FEEDBACK-DATA-RESTORE-V1
+- Branch: feature/plat-v3-feedback-data-restore-v1
 - Current stage: READY_FOR_REVIEW
 - Release status: NOT_RELEASED
-- Scope: Enrich the accepted Global Home and Brand Workspace UI with a consistent Tabler icon system, status dots, badges, and micro-interactions without changing IA or backend business semantics.
+- Scope: Restore the read-only existing SQLite project feedback path through Repository, Service, FastAPI, React Query, Global Home, and Brand Workspace without changing feedback records, database schema, or homepage IA.
 
 ## Completed
 

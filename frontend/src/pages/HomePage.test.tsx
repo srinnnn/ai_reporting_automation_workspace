@@ -41,10 +41,17 @@ const dashboard = {
   kpis: { brand_count: 2, connected_project_count: 4 },
 };
 
+const feedback = [
+  { project: "安踏周报/月报", mapped_project_key: "anta_reporting", mapped_project_name: "安踏周报/月报", brand_key: "ANTA", category_key: "P1", status: "CONNECTED", original_manual_time: "2小时", current_processing_time: "1小时", business_feedback: "ANTA P1反馈", iteration_need: "ANTA P1迭代", updated_by: "tester", updated_at: "2026-08-26 10:00:00" },
+  { project: "P3-即时零售-安踏", mapped_project_key: "anta_retail", mapped_project_name: "安踏即时零售", brand_key: "ANTA", category_key: "P3", status: "CONNECTED", original_manual_time: "4小时", current_processing_time: "1小时", business_feedback: "ANTA P3反馈", iteration_need: "ANTA P3迭代", updated_by: "tester", updated_at: "2026-08-26 10:00:00" },
+  { project: "博西短彩信数据处理", mapped_project_key: "bosch_sms", mapped_project_name: "博西短彩信数据处理", brand_key: "BSH", category_key: "P1", status: "CONNECTED", original_manual_time: "3小时", current_processing_time: "1小时", business_feedback: "BSH反馈", iteration_need: "BSH迭代", updated_by: "tester", updated_at: "2026-08-26 10:00:00" },
+  { project: "P1-短彩信数据处理-CK", mapped_project_key: null, mapped_project_name: null, brand_key: null, category_key: null, status: "UNMAPPED", original_manual_time: "3小时", current_processing_time: "1小时", business_feedback: "待映射反馈", iteration_need: "待映射迭代", updated_by: "tester", updated_at: "2026-08-26 10:00:00" },
+];
+
 function renderHome() {
-  vi.stubGlobal("fetch", vi.fn(async () => ({
+  vi.stubGlobal("fetch", vi.fn(async (input: string | URL | Request) => ({
     ok: true,
-    json: async () => dashboard,
+    json: async () => String(input).includes("/api/v1/feedback") ? feedback : dashboard,
   })));
   const router = createMemoryRouter([{ path: "/", element: <HomePage /> }]);
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -85,8 +92,10 @@ describe("HomePage", () => {
     expect(screen.getByTestId("project-bosch_sms_review")).toBeInTheDocument();
     expect(screen.queryByText("待接入")).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: /进入 Workspace/ })).toHaveAttribute("href", "/workspace/ANTA");
-    expect(screen.getByTestId("developed-feedback")).toHaveTextContent("全部品牌 / 未接入");
-    expect(screen.getByText("当前暂无已接入的开发反馈数据")).toBeInTheDocument();
+    expect(screen.getByTestId("kpi-feedback")).toHaveTextContent("4");
+    expect(screen.getByTestId("developed-feedback")).toHaveTextContent("全部品牌 / 4 条");
+    expect(screen.getByTestId("developed-feedback")).toHaveTextContent("ANTA P1反馈");
+    expect(screen.getByTestId("developed-feedback")).toHaveTextContent("待映射反馈");
   });
 
   it("keeps global dashboard data unchanged when the Workspace Entry selector changes", async () => {
@@ -105,7 +114,8 @@ describe("HomePage", () => {
     expect(screen.getByTestId("project-anta_retail")).toBeInTheDocument();
     expect(screen.getByTestId("project-bosch_sms")).toBeInTheDocument();
     expect(screen.getByTestId("project-bosch_sms_review")).toBeInTheDocument();
-    expect(screen.getByTestId("developed-feedback")).toHaveTextContent("全部品牌 / 未接入");
+    expect(screen.getByTestId("developed-feedback")).toHaveTextContent("全部品牌 / 4 条");
+    expect(screen.getByTestId("developed-feedback")).toHaveTextContent("待映射反馈");
     expect(screen.getByRole("link", { name: /进入 Workspace/ })).toHaveAttribute("href", "/workspace/BSH");
   });
 
@@ -128,6 +138,10 @@ describe("HomePage", () => {
     expect(screen.getByTestId("project-anta_retail")).toBeInTheDocument();
     expect(screen.queryByTestId("project-bosch_sms")).not.toBeInTheDocument();
     expect(screen.queryByTestId("project-bosch_sms_review")).not.toBeInTheDocument();
-    expect(screen.getByTestId("developed-feedback")).toHaveTextContent("ANTA 安踏 / 未接入");
+    expect(screen.getByTestId("kpi-feedback")).toHaveTextContent("2");
+    expect(screen.getByTestId("developed-feedback")).toHaveTextContent("ANTA 安踏 / 2 条");
+    expect(screen.getByTestId("developed-feedback")).toHaveTextContent("ANTA P1反馈");
+    expect(screen.getByTestId("developed-feedback")).not.toHaveTextContent("BSH反馈");
+    expect(screen.getByTestId("developed-feedback")).not.toHaveTextContent("待映射反馈");
   });
 });
