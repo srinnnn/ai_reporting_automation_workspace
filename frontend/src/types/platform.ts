@@ -28,6 +28,15 @@ export type ProjectSummary = {
   brand_key: string;
   category_key: "P1" | "P2" | "P3" | "P4";
   status: string;
+  integration_key?: string | null;
+  entry_path?: string | null;
+};
+
+export type IntegrationHealth = {
+  service: string;
+  status: "AVAILABLE" | "UNAVAILABLE";
+  entry_path: string;
+  message: string;
 };
 
 export type FeedbackSummary = {

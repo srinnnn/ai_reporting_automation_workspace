@@ -5,6 +5,7 @@ import logging
 import os
 from pathlib import Path
 from typing import Mapping
+from urllib.parse import urlsplit
 
 from dotenv import dotenv_values
 
@@ -70,6 +71,30 @@ class FileStorageConfig:
 
 
 @dataclass(frozen=True)
+class IntegrationConfig:
+    private_data_local_center_url: str
+
+    def __post_init__(self) -> None:
+        normalized = self.private_data_local_center_url.strip().rstrip("/")
+        parsed = urlsplit(normalized)
+        try:
+            parsed.port
+        except ValueError as exc:
+            raise ValueError("PRIVATE_DATA_LOCAL_CENTER_URL contains an invalid port") from exc
+        if (
+            parsed.scheme not in {"http", "https"}
+            or not parsed.hostname
+            or parsed.path
+            or parsed.query
+            or parsed.fragment
+        ):
+            raise ValueError("PRIVATE_DATA_LOCAL_CENTER_URL must be an http or https URL")
+        if parsed.username or parsed.password:
+            raise ValueError("PRIVATE_DATA_LOCAL_CENTER_URL must not contain credentials")
+        object.__setattr__(self, "private_data_local_center_url", normalized)
+
+
+@dataclass(frozen=True)
 class CoreConfig:
     environment: str
     debug: bool
@@ -79,6 +104,7 @@ class CoreConfig:
     database: DatabaseConfig
     ai: AiConfig
     files: FileStorageConfig
+    integrations: IntegrationConfig
 
     def __post_init__(self) -> None:
         if self.environment not in VALID_ENVIRONMENTS:
@@ -135,6 +161,13 @@ def load_core_config(
             result_dir=_path_from_env(source, "RESULT_DIR", runtime_dir / "results"),
             log_dir=_path_from_env(source, "LOG_DIR", runtime_dir / "logs"),
             template_root=_path_from_env(source, "TEMPLATE_ROOT", actual_root / "ai_report_config_materials"),
+        ),
+        integrations=IntegrationConfig(
+            private_data_local_center_url=_text_from_env(
+                source,
+                "PRIVATE_DATA_LOCAL_CENTER_URL",
+                "http://127.0.0.1:8000",
+            ),
         ),
     )
     assert isinstance(config, CoreConfig)

@@ -41,6 +41,17 @@ class ProjectSummary(BaseModel):
     brand_key: str
     category_key: str = Field(pattern=r"^P[1-4]$")
     status: str
+    integration_key: str | None = None
+    entry_path: str | None = None
+
+
+class IntegrationHealth(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    service: str
+    status: str
+    entry_path: str
+    message: str
 
 
 class FeedbackSummary(BaseModel):

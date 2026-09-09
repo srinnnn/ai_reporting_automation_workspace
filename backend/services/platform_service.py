@@ -9,6 +9,18 @@ from intranet_app.scenarios import build_scenarios
 from intranet_app.workspace_metadata import PRIORITY_SECTIONS, _workspace_brand_options, _workspace_scenario_keys_by_priority
 
 
+PRIVATE_DATA_LOCAL_CENTER_KEY = "private_data_local_center"
+PRIVATE_DATA_LOCAL_CENTER_INTEGRATION_KEY = "private-data-local-center"
+PRIVATE_DATA_LOCAL_CENTER_ENTRY_PATH = "/integrations/private-data-local-center/#/collection/requests/new"
+PRIVATE_DATA_LOCAL_CENTER_CAPABILITY = CapabilitySummary(
+    key=PRIVATE_DATA_LOCAL_CENTER_KEY,
+    name="私域数据采集中心",
+    brand_key="ANTA",
+    category_key="P1",
+    status="CONFIGURED",
+)
+
+
 @dataclass(frozen=True)
 class PlatformService:
     template_root: Path
@@ -59,6 +71,16 @@ class PlatformService:
                 brand_key=brand.key,
                 category_key=category.key,
                 status=capability.status,
+                integration_key=(
+                    PRIVATE_DATA_LOCAL_CENTER_INTEGRATION_KEY
+                    if capability.key == PRIVATE_DATA_LOCAL_CENTER_KEY
+                    else None
+                ),
+                entry_path=(
+                    PRIVATE_DATA_LOCAL_CENTER_ENTRY_PATH
+                    if capability.key == PRIVATE_DATA_LOCAL_CENTER_KEY
+                    else None
+                ),
             )
             for brand in self.brands()
             for category in brand.categories
@@ -114,6 +136,8 @@ class PlatformService:
             _category(key, category_key, category_name, scenario_keys_by_priority[category_key], scenarios)
             for category_key, category_name, _ in PRIORITY_SECTIONS
         )
+        if key == PRIVATE_DATA_LOCAL_CENTER_CAPABILITY.brand_key:
+            categories = tuple(_with_private_data_local_center(category) for category in categories)
         result = BrandSummary(
             key=key,
             name=name,
@@ -153,3 +177,18 @@ def _category(
     )
     assert isinstance(result, CategorySummary)
     return result
+
+
+def _with_private_data_local_center(category: CategorySummary) -> CategorySummary:
+    if category.key != PRIVATE_DATA_LOCAL_CENTER_CAPABILITY.category_key:
+        return category
+    if any(item.key == PRIVATE_DATA_LOCAL_CENTER_KEY for item in category.capabilities):
+        return category
+    capabilities = (*category.capabilities, PRIVATE_DATA_LOCAL_CENTER_CAPABILITY)
+    return CategorySummary(
+        key=category.key,
+        name=category.name,
+        capability_count=len(capabilities),
+        status="CONNECTED",
+        capabilities=capabilities,
+    )

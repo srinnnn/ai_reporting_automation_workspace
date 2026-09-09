@@ -49,7 +49,10 @@ class FastApiAppTests(unittest.TestCase):
 
         self.assertEqual(brand["active_category_count"], 2)
         categories = {category["key"]: category for category in brand["categories"]}
-        self.assertEqual([item["name"] for item in categories["P1"]["capabilities"]], ["安踏周报/月报"])
+        self.assertEqual(
+            [item["name"] for item in categories["P1"]["capabilities"]],
+            ["安踏周报/月报", "私域数据采集中心"],
+        )
         self.assertEqual(categories["P2"]["capabilities"], [])
         self.assertEqual([item["name"] for item in categories["P3"]["capabilities"]], ["安踏即时零售"])
 

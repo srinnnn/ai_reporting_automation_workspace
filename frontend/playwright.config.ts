@@ -10,6 +10,8 @@ export default defineConfig({
       APP_ENV: "production",
       DEMO_MODE: "false",
       PYTHONPATH: ".",
+      RUNTIME_DIR: "frontend/test-results/runtime",
+      SQLITE_PATH: "frontend/test-results/runtime/intranet.sqlite3",
     },
     reuseExistingServer: true,
     timeout: 60_000,
