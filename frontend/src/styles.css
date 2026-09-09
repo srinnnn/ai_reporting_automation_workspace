@@ -54,6 +54,13 @@ button, input, select { font: inherit; }
 .ui-select-leading-icon { flex: 0 0 auto; color: var(--text-muted); }
 
 .panel { background: var(--surface-base); border: 1px solid var(--border-subtle); border-radius: var(--radius-lg); padding: 18px; box-shadow: var(--shadow-base); }
+.integration-panel { display: grid; gap: 16px; }
+.integration-title, .integration-actions { display: flex; align-items: center; gap: 10px; }
+.integration-message { margin: 0; color: var(--text-secondary); font-size: 14px; }
+.integration-meta { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin: 0; }
+.integration-meta div { border-top: 1px solid var(--border-subtle); padding-top: 12px; }
+.integration-meta dt { color: var(--text-muted); font-size: 12px; }
+.integration-meta dd { display: flex; align-items: center; gap: 6px; margin: 6px 0 0; color: var(--text-primary); font-size: 14px; }
 .section-title { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; gap: 12px; }
 .section-title h2, .panel h2 { font-size: 16px; font-weight: 650; margin: 0; }
 .section-title span, .section-title a { font-size: 12px; color: var(--text-muted); }
@@ -175,6 +182,7 @@ footer { color: var(--text-subtle); font-size: 12px; text-align: center; padding
   .shell { grid-template-columns: 1fr; }
   .sidebar { display: none; }
   .brand-grid, .category-grid, .kpi-grid, .panel-grid, .quick-nav, .project-list { grid-template-columns: 1fr; }
+  .integration-meta { grid-template-columns: 1fr; }
   .feedback-list { grid-auto-columns: minmax(280px, 86%); }
   .topbar { grid-template-columns: 1fr; height: auto; padding: 12px 16px; }
   .topbar-actions { flex-wrap: wrap; }

@@ -19,6 +19,31 @@ class CoreConfigTests(unittest.TestCase):
         self.assertEqual(config.database.backend, "sqlite")
         self.assertFalse(config.ai.api_key_configured)
         self.assertEqual(config.ai.model, "qwen-plus")
+        self.assertEqual(config.integrations.private_data_local_center_url, "http://127.0.0.1:8000")
+
+    def test_loads_private_data_local_center_url_override(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            config = load_core_config(
+                environ={"PRIVATE_DATA_LOCAL_CENTER_URL": "http://127.0.0.1:9010/"},
+                root_dir=Path(temp_dir),
+            )
+
+        self.assertEqual(config.integrations.private_data_local_center_url, "http://127.0.0.1:9010")
+
+    def test_rejects_private_data_local_center_url_outside_origin_contract(self) -> None:
+        invalid_values = (
+            "file:///tmp/private-data",
+            "http://user:password@127.0.0.1:8000",
+            "http://127.0.0.1:8000/path",
+            "http://127.0.0.1:invalid",
+        )
+        with tempfile.TemporaryDirectory() as temp_dir:
+            for value in invalid_values:
+                with self.subTest(value=value), self.assertRaises(ValueError):
+                    load_core_config(
+                        environ={"PRIVATE_DATA_LOCAL_CENTER_URL": value},
+                        root_dir=Path(temp_dir),
+                    )
 
     def test_rejects_invalid_environment(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:

@@ -179,6 +179,8 @@ describe("platform homepage components", () => {
     ["CONNECTED", "success"],
     ["IN_DEVELOPMENT", "progress"],
     ["BLOCKED", "blocked"],
+    ["AVAILABLE", "success"],
+    ["UNAVAILABLE", "blocked"],
   ])("StatusDot maps %s to %s tone", (status, tone) => {
     render(<StatusDot status={status} />);
 

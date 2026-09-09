@@ -66,9 +66,22 @@ test("production runtime serves home, routes, and friendly 404", async ({ page }
 
   await page.goto("/projects");
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+  await expect(page.getByTestId("project-private_data_local_center")).toBeVisible();
 
   await page.goto("/not-a-real-route");
   await expect(page.getByRole("heading", { name: "404" })).toBeVisible();
+});
+
+test("private data center is registered and fails closed while its service is offline", async ({ page }) => {
+  await page.goto("/");
+  await expect(page.getByTestId("project-private_data_local_center")).toBeVisible();
+  await page.getByTestId("project-private_data_local_center").click();
+
+  await expect(page).toHaveURL(/\/projects\/private_data_local_center$/);
+  await expect(page.getByRole("heading", { name: "私域数据采集中心" })).toBeVisible();
+  await expect(page.getByText("UNAVAILABLE")).toBeVisible();
+  await expect(page.getByRole("button", { name: "服务不可用" })).toBeDisabled();
+  await expect(page.getByRole("link", { name: /打开采集需求页/ })).toHaveCount(0);
 });
 
 test("homepage structural visual regression matches approved baseline contract", async ({ page }) => {
@@ -130,9 +143,10 @@ test("Workspace Entry selector does not scope global dashboard context", async (
   await page.goto("/");
   await expect(page.getByTestId("kpi-brand-count")).toContainText("3");
   await expect(page.getByTestId("kpi-active-categories")).toContainText("3");
-  await expect(page.getByTestId("kpi-connected-projects")).toContainText("5");
+  await expect(page.getByTestId("kpi-connected-projects")).toContainText("6");
   await expect(page.getByTestId("project-anta_reporting")).toBeVisible();
   await expect(page.getByTestId("project-anta_retail")).toBeVisible();
+  await expect(page.getByTestId("project-private_data_local_center")).toBeVisible();
   await expect(page.getByTestId("project-bosch_sms")).toBeVisible();
   await expect(page.getByTestId("project-bosch_sms_review")).toBeVisible();
   await expect(page.getByTestId("project-ecco_activity_config")).toBeVisible();
@@ -156,14 +170,15 @@ test("Global Brand Filter scopes homepage KPI, categories, projects, and feedbac
   await expect(page.getByRole("link", { name: /进入 Workspace/ })).toHaveAttribute("href", "/workspace/BSH");
   await expect(page.getByTestId("kpi-brand-count")).toContainText("1");
   await expect(page.getByTestId("kpi-active-categories")).toContainText("2");
-  await expect(page.getByTestId("kpi-connected-projects")).toContainText("2");
+  await expect(page.getByTestId("kpi-connected-projects")).toContainText("3");
   await expect(page.getByTestId("kpi-feedback")).toContainText("0");
-  await expect(page.getByTestId("category-P1")).toContainText("1 个能力");
+  await expect(page.getByTestId("category-P1")).toContainText("2 个能力");
   await expect(page.getByTestId("category-P2")).toContainText("暂无接入能力");
   await expect(page.getByTestId("category-P3")).toContainText("1 个能力");
   await expect(page.getByTestId("category-P4")).toContainText("暂无接入能力");
   await expect(page.getByTestId("project-anta_reporting")).toBeVisible();
   await expect(page.getByTestId("project-anta_retail")).toBeVisible();
+  await expect(page.getByTestId("project-private_data_local_center")).toBeVisible();
   await expect(page.getByTestId("project-bosch_sms")).not.toBeVisible();
   await expect(page.getByTestId("project-bosch_sms_review")).not.toBeVisible();
   await expect(page.getByTestId("project-ecco_activity_config")).not.toBeVisible();
@@ -184,6 +199,7 @@ test("Global Brand Filter scopes homepage KPI, categories, projects, and feedbac
   await expect(page.getByTestId("project-bosch_sms_review")).toBeVisible();
   await expect(page.getByTestId("project-anta_reporting")).not.toBeVisible();
   await expect(page.getByTestId("project-anta_retail")).not.toBeVisible();
+  await expect(page.getByTestId("project-private_data_local_center")).not.toBeVisible();
   await expect(page.getByTestId("project-ecco_activity_config")).not.toBeVisible();
   await expect(page.getByTestId("developed-feedback")).toContainText("BSH 博西 / 0 条");
   await expect(page.getByTestId("developed-feedback")).toContainText("当前暂无已接入的开发反馈数据");
@@ -201,6 +217,7 @@ test("Global Brand Filter scopes homepage KPI, categories, projects, and feedbac
   await expect(page.getByTestId("project-ecco_activity_config")).toBeVisible();
   await expect(page.getByTestId("project-anta_reporting")).not.toBeVisible();
   await expect(page.getByTestId("project-anta_retail")).not.toBeVisible();
+  await expect(page.getByTestId("project-private_data_local_center")).not.toBeVisible();
   await expect(page.getByTestId("project-bosch_sms")).not.toBeVisible();
   await expect(page.getByTestId("project-bosch_sms_review")).not.toBeVisible();
   await expect(page.getByTestId("developed-feedback")).toContainText("ECCO / 0 条");
@@ -209,9 +226,10 @@ test("Global Brand Filter scopes homepage KPI, categories, projects, and feedbac
 
 test("Brand Workspace pages only render current-brand projects and feedback context", async ({ page }) => {
   await page.goto("/workspace/ANTA");
-  await expect(page.getByTestId("brand-kpi")).toContainText("2");
+  await expect(page.getByTestId("brand-kpi")).toContainText("3");
   await expect(page.getByTestId("brand-projects")).toContainText("安踏周报/月报");
   await expect(page.getByTestId("brand-projects")).toContainText("安踏即时零售");
+  await expect(page.getByTestId("brand-projects")).toContainText("私域数据采集中心");
   await expect(page.getByTestId("brand-projects")).not.toContainText("博西短彩信数据处理");
   await expect(page.getByTestId("brand-projects")).not.toContainText("ECCO活动配置");
   await expect(page.getByTestId("brand-feedback")).toContainText("ANTA 安踏 / 0 条");
@@ -276,7 +294,7 @@ test("P1-P4 category navigation keeps selected brand and prevents cross-category
 
   await page.getByTestId("category-P1").click();
   await expect(page).toHaveURL(/\/workspace\/ANTA\/P1$/);
-  await expect(page.locator(".project-row")).toHaveCount(1);
+  await expect(page.locator(".project-row")).toHaveCount(2);
 
   await page.goto("/workspace/ANTA/P2");
   await expect(page.locator(".project-row")).toHaveCount(0);

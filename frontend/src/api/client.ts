@@ -1,4 +1,4 @@
-import type { BrandSummary, DashboardSummary, EmptyModule, FeedbackSummary, ProjectSummary, ScheduleItem } from "../types/platform";
+import type { BrandSummary, DashboardSummary, EmptyModule, FeedbackSummary, IntegrationHealth, ProjectSummary, ScheduleItem } from "../types/platform";
 
 async function getJson<T>(path: string): Promise<T> {
   const response = await fetch(path, { headers: { Accept: "application/json" } });
@@ -25,6 +25,7 @@ export const api = {
   brand: (brandKey: string) => getJson<BrandSummary>(`/api/v1/brands/${encodeURIComponent(brandKey)}`),
   projects: () => getJson<ProjectSummary[]>("/api/v1/projects"),
   project: (projectKey: string) => getJson<ProjectSummary>(`/api/v1/projects/${encodeURIComponent(projectKey)}`),
+  privateDataLocalCenterHealth: () => getJson<IntegrationHealth>("/api/v1/integrations/private-data-local-center/health"),
   feedback: (filters: FeedbackFilters = {}) => getJson<FeedbackSummary[]>(feedbackPath(filters)),
   schedules: () => getJson<ScheduleItem[]>("/api/v1/schedules"),
   module: (key: "tasks" | "reports" | "data-foundation") => getJson<EmptyModule>(`/api/v1/${key}`),
