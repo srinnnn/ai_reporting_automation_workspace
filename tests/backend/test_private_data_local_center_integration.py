@@ -114,6 +114,17 @@ class PrivateDataLocalCenterIntegrationTests(unittest.TestCase):
         self.assertIn('/integrations/private-data-local-center/assets/index.js', index.text)
         self.assertEqual(asset.text, "console.log('ready')")
 
+    def test_rejects_non_asset_paths_under_the_frontend_proxy_prefix(self) -> None:
+        upstream = FakePrivateDataLocalCenterClient()
+        client = self._client(upstream)
+
+        response = client.get(
+            "/integrations/private-data-local-center/api/v1/collection-requests/request-a"
+        )
+
+        self.assertEqual(response.status_code, 404)
+        self.assertEqual(upstream.calls, [])
+
     def test_forwards_collection_request_body_and_upstream_status(self) -> None:
         upstream = FakePrivateDataLocalCenterClient()
         client = self._client(upstream)

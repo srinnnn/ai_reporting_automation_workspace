@@ -171,9 +171,13 @@ def create_app(*, private_data_client: PrivateDataLocalCenterGateway | None = No
     def private_data_local_center_index() -> Response:
         return _proxy_private_data_frontend(collection_client, "/")
 
-    @app.get("/integrations/private-data-local-center/{asset_path:path}")
+    @app.get("/integrations/private-data-local-center/assets/{asset_path:path}")
     def private_data_local_center_asset(asset_path: str) -> Response:
-        return _proxy_private_data_frontend(collection_client, f"/{asset_path}")
+        return _proxy_private_data_frontend(collection_client, f"/assets/{asset_path}")
+
+    @app.get("/integrations/private-data-local-center/{unsupported_path:path}")
+    def reject_unsupported_private_data_local_center_path(unsupported_path: str) -> None:
+        raise HTTPException(status_code=404, detail="Unsupported private data local center path")
 
     if FRONTEND_DIST.joinpath("assets").exists():
         app.mount("/assets", StaticFiles(directory=FRONTEND_DIST / "assets"), name="assets")

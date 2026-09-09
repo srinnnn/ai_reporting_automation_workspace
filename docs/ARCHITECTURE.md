@@ -28,6 +28,16 @@ GitHub -> GitHub Actions CI -> trusted main commit -> self-hosted Windows runner
 
 Production must not use the Vite dev server, `python -m intranet_app.app`, or `BaseHTTPRequestHandler`.
 
+## Private Data Local Center Integration
+
+中台把私域数据采集中心登记为 ANTA/P1 项目，但不复制其表单、校验或持久化逻辑。私域中心仍是采集需求的唯一事实源和状态所有者。
+
+The middle platform registers the Private Data Local Center as an ANTA/P1 project without duplicating its form, validation, or persistence. The private center remains the sole source of truth and state owner for collection requests.
+
+The integration uses a server-configured origin, a live health check, a same-origin frontend entry, and four explicit collection-request API routes. The frontend proxy is allowlisted to the root document and `/assets/*`; arbitrary paths are rejected rather than forwarded.
+
+See [`PRIVATE_DATA_LOCAL_CENTER_INTEGRATION.md`](PRIVATE_DATA_LOCAL_CENTER_INTEGRATION.md) for the decision, contracts, deployment prerequisites, security boundary, and rollback.
+
 ## Legacy Boundary
 
 Legacy business code remains in `intranet_app/` for retained modules. Legacy server-rendered UI is no longer the production runtime entry after this migration.
